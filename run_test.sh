@@ -2,7 +2,7 @@
 
 # Define paths
 EXEC="$1"
-TEST_DIR="tests"
+TEST_DIR="tests/input"
 
 # Ensure the executable exists
 if [ ! -f "$EXEC" ]; then
@@ -34,19 +34,23 @@ for test_file in "$TEST_DIR"/*.in; do
     
     # Run the executable, redirecting stdout/stderr to a temporary log
     # Output is hidden unless the test fails
-    if $EXEC < $test_file > /tmp/test.log 2>&1; then
+    $EXEC < $test_file > tests/output/"$filename".out 2>&1;
+    if diff -q tests/output/"$filename".out tests/results/"$filename".out; then
         echo -e "[\033[32mPASS\033[0m] $filename"
         ((PASSED++))
     else
         echo -e "[\033[31mFAIL\033[0m] $filename"
         # Print the captured error output indented for easy debugging
-        sed 's/^/       /' /tmp/test.log
+        echo "Output:"
+        cat tests/output/"$filename".out 
+        echo "Expected:"
+        cat tests/results/"$filename".out
         ((FAILED++))
     fi
 done
 
 # Clean up temp log
-rm -f /tmp/test.log
+rm -f tests/output/*
 
 echo "================================================================="
 echo " Summary: $PASSED / $TOTAL tests passed."

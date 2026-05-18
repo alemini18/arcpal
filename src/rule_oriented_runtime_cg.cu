@@ -8,7 +8,7 @@
 
 namespace cg = cooperative_groups; // Alias per comodità
 
-#include "parser.hpp" 
+#include "../include/parser.hpp" 
 
 // =========================================================================
 // KERNEL E FUNZIONI DEVICE

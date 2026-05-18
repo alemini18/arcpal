@@ -177,7 +177,7 @@ void run_propagation(PropagatorInput& input) {
         cudaMemcpy(&h_contradiction, d_contradiction, sizeof(int), cudaMemcpyDeviceToHost);
         
         iteration++;
-        printf("Iterazione %d: %s\n", iteration, h_changed ? "Nuove deduzioni" : "Nessuna modifica");
+        //printf("Iterazione %d: %s\n", iteration, h_changed ? "Nuove deduzioni" : "Nessuna modifica");
 
     } while (h_changed == 1 && h_contradiction == 0);
 

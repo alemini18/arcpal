@@ -49,12 +49,12 @@ __global__ void propagate_kernel_cooperative(
         if (*global_contradiction) break;
 
         // Se il blocco gestisce una regola valida, esegue la logica
-        if (rule_id < num_rules) {
-            
-            int start_idx = rule_offsets[rule_id];
-            int end_idx = rule_offsets[rule_id + 1];
+        for (int current_rule_id = blockIdx.x; current_rule_id < num_rules; current_rule_id += gridDim.x) {
+    
+            int start_idx = rule_offsets[current_rule_id];
+            int end_idx = rule_offsets[current_rule_id + 1];
             int num_literals = end_idx - start_idx;
-            int B = bound[rule_id];
+            int B = bound[current_rule_id];
 
             if (threadIdx.x == 0) {
                 S_sat_shared = 0;
@@ -205,10 +205,31 @@ void run_propagation(PropagatorInput& input) {
     cudaMemset(d_contradiction, 0, sizeof(int));
     cudaMemset(d_iterations, 0, sizeof(int)); // Inizializziamo a 0
 
-    int threadsPerBlock = 256; 
-    int blocksPerGrid = input.num_rules;
-    
-    printf("--- Inizio Propagazione Cooperativa ---\n");
+    // DENTRO A run_propagation, prima del lancio del kernel:
+
+int threadsPerBlock = 256; 
+int numBlocks = 0;
+
+// Chiediamo a CUDA qual è il numero MASSIMO di blocchi attivi per questo specifico kernel
+cudaOccupancyMaxActiveBlocksPerMultiprocessor(
+    &numBlocks, 
+    (void*)propagate_kernel_cooperative, 
+    threadsPerBlock, 
+    0 // Shared memory dinamica (0 nel nostro caso)
+);
+
+// Calcoliamo i blocchi totali moltiplicando per il numero di multiprocessori
+int deviceId;
+cudaGetDevice(&deviceId);
+cudaDeviceProp deviceProp;
+cudaGetDeviceProperties(&deviceProp, deviceId);
+
+int maxCooperativeBlocks = numBlocks * deviceProp.multiProcessorCount;
+
+// Usiamo il numero minore tra le regole totali e il limite fisico della GPU
+int blocksPerGrid = (input.num_rules < maxCooperativeBlocks) ? input.num_rules : maxCooperativeBlocks;
+
+printf("Lancio Cooperative Kernel con %d blocchi (Max supportati: %d)\n", blocksPerGrid, maxCooperativeBlocks);
 
     // LANCIO DEL KERNEL COOPERATIVO
     // A differenza di <<<...>>>, dobbiamo usare cudaLaunchCooperativeKernel

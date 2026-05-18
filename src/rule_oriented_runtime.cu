@@ -203,7 +203,7 @@ int main(int argc, char** argv) {
 
 
     try {
-        PropagatorInput input = parse_dimacs_input("data/ex.txt");
+        PropagatorInput input = parse_dimacs_input();
         
         printf("Parsing completato: %d atomi, %d regole.\n", input.num_atoms, input.num_rules);
 

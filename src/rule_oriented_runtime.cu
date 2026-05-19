@@ -149,7 +149,7 @@ bool run_propagation(PropagatorInput& input) {
         h_changed = 0;
         cudaMemcpy(d_changed, &h_changed, sizeof(int), cudaMemcpyHostToDevice);
 
-        propagate_kernel<<<blocksPerGrid, threadsPerBlock>>>(
+        propagation_kernel<<<blocksPerGrid, threadsPerBlock>>>(
             d_M, d_head, d_bound, d_rule_offsets, d_flat_literals, d_flat_weights,
             input.num_rules, d_changed, d_contradiction
         );

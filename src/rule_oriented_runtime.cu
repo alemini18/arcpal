@@ -179,7 +179,7 @@ int main() {
 
         bool contradiction = run_propagation(input);
 
-        pretty_print_structure(input, contradiction);
+        pretty_print_structure(input);
 
     } catch (const std::exception& e) {
         std::cerr << "\nEccezione catturata: " << e.what() << std::endl;

@@ -192,10 +192,16 @@ int run_propagation(PropagatorInput& input) {
     printf("Lancio Cooperative Kernel con %d blocchi (Max supportati: %d)\n", blocksPerGrid, maxCooperativeBlocks);
 
     void* kernelArgs[] = {
-        d_M, d_head, d_bound, d_rule_offsets, 
-        d_flat_literals, d_flat_weights, &input.num_rules, 
-        d_changed, d_contradiction
-    };
+    (void*)&d_M,
+    (void*)&d_head,
+    (void*)&d_bound,
+    (void*)&d_rule_offsets,
+    (void*)&d_flat_literals,
+    (void*)&d_flat_weights,
+    (void*)&input.num_rules,
+    (void*)&d_changed,
+    (void*)&d_contradiction
+};
 
     cudaError_t err = cudaLaunchCooperativeKernel(
         propagation_kernel_cooperative,

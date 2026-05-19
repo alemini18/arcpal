@@ -166,7 +166,6 @@ int run_propagation(PropagatorInput& input) {
 
     cudaMalloc(&d_changed, sizeof(int));
     cudaMalloc(&d_contradiction, sizeof(int));
-    cudaMalloc(&d_iterations, sizeof(int));
     
     cudaMemset(d_changed, 0, sizeof(int));
     cudaMemset(d_contradiction, 0, sizeof(int));
@@ -176,7 +175,7 @@ int run_propagation(PropagatorInput& input) {
 
     cudaOccupancyMaxActiveBlocksPerMultiprocessor(
         &numBlocks, 
-        (void*)propagate_kernel_cooperative, 
+        propagation_kernel_cooperative, 
         threadsPerBlock, 
         0
 );

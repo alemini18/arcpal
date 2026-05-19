@@ -8,9 +8,9 @@
 
 // Enums for truth values to maintain readability across CPU and GPU
 enum TruthValue {
-    FALSE_VAL = 0,
-    UNDEF_VAL = -1,
-    TRUE_VAL  = 1
+    FALSE = 0,
+    UNDEF = -1,
+    TRUE  = 1
 };
 
 // Structure holding the flattened CSR-like rule set ready for GPU transfer

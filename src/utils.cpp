@@ -11,7 +11,7 @@ void assign_val_to_literal(std::vector<int>& M, int lit, int val) {
 
 int get_literal_val(std::vector<int>& M, int lit) {
     int val = M[std::abs(lit)];
-    if (val == UNDEF_VAL) return UNDEF_VAL;
+    if (val == UNDEF) return UNDEF;
     if (lit > 0) return val;
     return 1 - val;
 }

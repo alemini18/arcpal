@@ -9,8 +9,8 @@
 #include "../include/pretty_printer.hpp" 
 
 __device__ void atomicDeduce(int* M, int atom_id, int deduced_val, int* contradiction, int* changed) {
-    int old_val = atomicCAS(&M[atom_id], UNDEF_VAL, deduced_val);
-    if (old_val == UNDEF_VAL) {
+    int old_val = atomicCAS(&M[atom_id], UNDEF, deduced_val);
+    if (old_val == UNDEF) {
         *changed = 1;
     } else if (old_val != deduced_val) {
         *contradiction = 1; 

@@ -50,7 +50,7 @@ void pretty_print_structure(PropagatorInput& data) {
         int state = data.M[atom];
         std::cout << "  A" << std::left << std::setw(4) << atom << " : " 
                   << truth_to_string(state) << "\n";
-        if (state != UNDEF_VAL) {
+        if (state != UNDEF) {
             determined_count++;
         }
     }

@@ -86,8 +86,7 @@ __global__ void propagation_kernel(
 
     if (h_val_cur != UNDEF) {
 
-        bool h_sat = false;
-        h_sat = ((h_lit > 0) && h_val_cur == TRUE) || ((h_lit < 0) && h_val_cur == FALSE);
+        bool h_sat = ((h_lit > 0) && h_val_cur == TRUE) || ((h_lit < 0) && h_val_cur == FALSE);
 
         for (int i = threadIdx.x; i < num_literals; i += blockDim.x) {
             int lit_idx = start_idx + i;

@@ -207,7 +207,7 @@ int run_propagation(PropagatorInput& input) {
 
     if (err != cudaSuccess){
         std::cerr << "Errore CUDA Launch: " << cudaGetErrorString(err) << "\n";
-        return;
+        return 0;
     }
 
     cudaDeviceSynchronize();

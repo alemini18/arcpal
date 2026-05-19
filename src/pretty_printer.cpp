@@ -17,8 +17,8 @@ std::string lit_to_string(int lit) {
 // Helper to convert internal truth enum/integers to readable strings
 std::string truth_to_string(int val) {
     switch(val) {
-        case TRUE_VAL:  return "TRUE";
-        case FALSE_VAL: return "FALSE";
+        case TRUE:  return "TRUE";
+        case FALSE: return "FALSE";
         default:        return "UNDEF";
     }
 }
@@ -92,9 +92,9 @@ void pretty_print_structure(PropagatorInput& data) {
 
             // Compute partial sums dynamically
             int lit_val = get_literal_val(data.M, lit);
-            if (lit_val == TRUE_VAL) {
+            if (lit_val == TRUE) {
                 S_sat += weight;
-            } else if (lit_val == UNDEF_VAL) {
+            } else if (lit_val == UNDEF) {
                 S_undef += weight;
             }
         }

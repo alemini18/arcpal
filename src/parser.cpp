@@ -23,7 +23,7 @@ PropagatorInput parse_dimacs_input() {
             
             // Initialize assignments to UNDEF. 
             // Sized num_atoms + 1 to safely accommodate 1-based literal indices.
-            data.M.assign(data.num_atoms + 1, UNDEF_VAL);
+            data.M.assign(data.num_atoms + 1, UNDEF);
             
             // Pre-allocate exact memory for rule metadata
             data.head.resize(data.num_rules);
@@ -65,7 +65,7 @@ PropagatorInput parse_dimacs_input() {
                     throw std::runtime_error("Error: Initial assignment references invalid atom ID.");
                 }
                 // Assign TRUE (1) if positive, FALSE (-1) if negative
-                data.M[atom] = (init_lit > 0) ? TRUE_VAL : FALSE_VAL;
+                data.M[atom] = (init_lit > 0) ? TRUE : FALSE;
             }
         }
     }

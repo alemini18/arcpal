@@ -234,6 +234,8 @@ int main() {
 
         bool contradiction = run_propagation(input);
 
+        cout<<"SUCCESSO"<<endl;
+
         pretty_print_structure(input);
 
     } catch (const std::exception& e) {

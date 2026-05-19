@@ -211,15 +211,14 @@ int run_propagation(PropagatorInput& input) {
 
     cudaDeviceSynchronize();
 
-    int h_contradiction, h_iterations;
+    int h_contradiction;
     cudaMemcpy(&h_contradiction, d_contradiction, sizeof(int), cudaMemcpyDeviceToHost);
-    cudaMemcpy(&h_iterations, d_iterations, sizeof(int), cudaMemcpyDeviceToHost);
     cudaMemcpy(input.M.data(), d_M, input.M.size() * sizeof(int), cudaMemcpyDeviceToHost);
 
     cudaFree(d_M); cudaFree(d_head); cudaFree(d_bound); 
     cudaFree(d_rule_offsets); cudaFree(d_flat_literals); 
     cudaFree(d_flat_weights); cudaFree(d_changed); 
-    cudaFree(d_contradiction); cudaFree(d_iterations);
+    cudaFree(d_contradiction);
 
     return h_contradiction;
 }

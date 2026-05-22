@@ -6,7 +6,7 @@
 #include <cuda_runtime.h>
 #include <cooperative_groups.h> 
 #include "../include/parser.hpp" 
-#include "../include/pretty_printer.hpp"
+#include "../include/printer.hpp"
 
 namespace cg = cooperative_groups; 
 
@@ -189,7 +189,7 @@ int run_propagation(PropagatorInput& input) {
 
     int blocksPerGrid = (input.num_rules < maxCooperativeBlocks) ? input.num_rules : maxCooperativeBlocks;
 
-    printf("Lancio Cooperative Kernel con %d blocchi (Max supportati: %d)\n", blocksPerGrid, maxCooperativeBlocks);
+    //printf("Lancio Cooperative Kernel con %d blocchi (Max supportati: %d)\n", blocksPerGrid, maxCooperativeBlocks);
 
     void* kernelArgs[] = {
     (void*)&d_M,
@@ -236,13 +236,13 @@ int main() {
     try {
         PropagatorInput input = parse_dimacs_input();
         
-        printf("Parsing completato: %d atomi, %d regole.\n", input.num_atoms, input.num_rules);
+        //printf("Parsing completato: %d atomi, %d regole.\n", input.num_atoms, input.num_rules);
 
         bool contradiction = run_propagation(input);
 
-        printf("SUCCESSO\n");
+        //printf("SUCCESSO\n");
 
-        pretty_print_structure(input);
+        print_structure(input);
 
     } catch (const std::exception& e) {
         std::cerr << "\nEccezione catturata: " << e.what() << std::endl;

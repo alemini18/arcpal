@@ -143,7 +143,7 @@ bool run_propagation(PropagatorInput& input) {
     int blocksPerGrid = input.num_rules;
     int h_changed, h_contradiction;
 
-    printf("--- Inizio Propagazione ---\n");
+    //printf("--- Inizio Propagazione ---\n");
     do {
         h_changed = 0;
         cudaMemcpy(d_changed, &h_changed, sizeof(int), cudaMemcpyHostToDevice);
@@ -174,7 +174,7 @@ int main() {
     try {
         PropagatorInput input = parse_dimacs_input();
         
-        printf("Parsing completato: %d atomi, %d regole.\n", input.num_atoms, input.num_rules);
+        //printf("Parsing completato: %d atomi, %d regole.\n", input.num_atoms, input.num_rules);
 
         bool contradiction = run_propagation(input);
 

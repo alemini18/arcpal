@@ -6,7 +6,7 @@
 #include <cuda_runtime.h>
 
 #include "../include/parser.hpp" 
-#include "../include/pretty_printer.hpp" 
+#include "../include/printer.hpp" 
 
 __device__ void atomicDeduce(int* M, int atom_id, int deduced_val, int* contradiction, int* changed) {
     int old_val = atomicCAS(&M[atom_id], UNDEF, deduced_val);
@@ -178,7 +178,7 @@ int main() {
 
         bool contradiction = run_propagation(input);
 
-        pretty_print_structure(input);
+        print_structure(input);
 
     } catch (const std::exception& e) {
         std::cerr << "\nEccezione catturata: " << e.what() << std::endl;

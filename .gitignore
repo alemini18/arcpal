@@ -4,6 +4,6 @@
 *.ptx
 *.cubin
 *.fatbin
-*.out
 *.o
 *build*
+sudoku.csv

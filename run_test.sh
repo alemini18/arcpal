@@ -2,7 +2,7 @@
 
 # Define paths
 EXEC="$1"
-TEST_DIR="tests/input"
+TEST_DIR="tests/sudoku/instance"
 
 # Ensure the executable exists
 if [ ! -f "$EXEC" ]; then
@@ -34,8 +34,8 @@ for test_file in "$TEST_DIR"/*.in; do
     
     # Run the executable, redirecting stdout/stderr to a temporary log
     # Output is hidden unless the test fails
-    $EXEC < $test_file > tests/output/"$filename".out 2>&1;
-    if diff -q tests/output/"$filename".out tests/results/"$filename".out; then
+    $EXEC < $test_file > tests/sudoku/output/"$filename".out 2>&1;
+    if diff -q tests/sudoku/output/"$filename".out tests/sudoku/results/"$filename".out; then
         echo -e "[\033[32mPASS\033[0m] $filename"
         ((PASSED++))
     else

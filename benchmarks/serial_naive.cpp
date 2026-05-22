@@ -11,17 +11,17 @@ bool infer_head(PropagatorInput& data, int head, int bound, int satisfied_count,
     int head_val = get_literal_val(data.M, head);
     
     if (satisfied_count >= bound) {
-        if (head_val == UNDEF_VAL) {
-            assign_val_to_literal(data.M, head, TRUE_VAL);
+        if (head_val == UNDEF) {
+            assign_val_to_literal(data.M, head, TRUE);
             return true;
-        } else if (head_val == FALSE_VAL) {
+        } else if (head_val == FALSE) {
             global_contradiction = true;
         }
     } else if (satisfied_count + undefined_count < bound) {
-        if (head_val == UNDEF_VAL) {
-            assign_val_to_literal(data.M, head, FALSE_VAL);
+        if (head_val == UNDEF) {
+            assign_val_to_literal(data.M, head, FALSE);
             return true;
-        } else if (head_val == TRUE_VAL) {
+        } else if (head_val == TRUE) {
             global_contradiction = true;
         }
     }
@@ -32,7 +32,7 @@ bool infer_body(PropagatorInput& data, int head, int bound, int rule_start, int 
     bool changed = false;
     int head_val = get_literal_val(data.M, head);
     
-    if (head_val == UNDEF_VAL) {
+    if (head_val == UNDEF) {
         return false;
     }
 
@@ -41,13 +41,13 @@ bool infer_body(PropagatorInput& data, int head, int bound, int rule_start, int 
         int weight = data.flat_weights[j];
         int lit_val = get_literal_val(data.M, lit);
         
-        if (lit_val != UNDEF_VAL) continue;
+        if (lit_val != UNDEF) continue;
 
-        if (head_val == TRUE_VAL && satisfied_count + undefined_count - weight < bound) {
-            assign_val_to_literal(data.M, lit, TRUE_VAL);
+        if (head_val == TRUE && satisfied_count + undefined_count - weight < bound) {
+            assign_val_to_literal(data.M, lit, TRUE);
             changed = true;
-        } else if (head_val == FALSE_VAL && satisfied_count + weight >= bound) {
-            assign_val_to_literal(data.M, lit, FALSE_VAL);
+        } else if (head_val == FALSE && satisfied_count + weight >= bound) {
+            assign_val_to_literal(data.M, lit, FALSE);
             changed = true;
         }
     }
@@ -68,9 +68,9 @@ bool propagate_rule(PropagatorInput& data, int rule_idx, bool& global_contradict
         int weight = data.flat_weights[j];
         int lit_val = get_literal_val(data.M, lit);
 
-        if (lit_val == TRUE_VAL) {
+        if (lit_val == TRUE) {
             satisfied_count += weight;
-        } else if (lit_val == UNDEF_VAL) {
+        } else if (lit_val == UNDEF) {
             undefined_count += weight;
         }
     }

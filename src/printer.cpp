@@ -17,9 +17,9 @@ void print_structure(PropagatorInput& data, bool is_contradiction) {
         
     for (int atom = 1; atom <= data.num_atoms; ++atom) {
         int state = data.M[atom];
-        if (state == TRUE_VAL) {
+        if (state == TRUE) {
             std::cout << atom << " ";
-        } else if (state == FALSE_VAL) {
+        } else if (state == FALSE) {
             std::cout << -atom << " ";
         }
     }
@@ -42,9 +42,9 @@ void print_structure(PropagatorInput& data, bool is_contradiction) {
             int weight = data.flat_weights[i];
             
             int lit_val = get_literal_val(data.M, lit);
-            if (lit_val == TRUE_VAL) {
+            if (lit_val == TRUE) {
                 S_sat += weight;
-            } else if (lit_val == UNDEF_VAL) {
+            } else if (lit_val == UNDEF) {
                 S_undef += weight;
             }
         }

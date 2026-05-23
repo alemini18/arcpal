@@ -407,7 +407,7 @@ int main() {
         PropagatorInput input = parse_dimacs_input();
         ReverseTables revt;
         build_reverse_tables(input, revt);
-        bool contradiction = run_propagation_atom_oriented(input);
+        bool contradiction = run_propagation_atom_oriented(input,revt);
         print_structure(input);
     } catch (const std::exception& e) {
         std::cerr << "\nEccezione catturata: " << e.what() << std::endl;

@@ -88,9 +88,9 @@ __global__ void propagation_kernel(
     // Fase 1: Body -> Head
     if (tile.thread_rank() == 0) {
         if (S_sat >= B) { 
-            atomicDeduce(M, h_atom, h_val, contradiction, changed);
+            atomicDeduce(M, h_atom, h_val, global_contradiction, global_changed);
         } else if (S_max < B) { 
-            atomicDeduce(M, h_atom, h_not_val, contradiction, changed);
+            atomicDeduce(M, h_atom, h_not_val, global_contradiction, global_changed);
         }
     }
     
@@ -202,8 +202,11 @@ bool run_propagation(PropagatorInput& input) {
 
     cudaDeviceSynchronize();
 
+    int h_contradiction;
+
     // Recupero del modello aggiornato
     cudaMemcpy(input.M.data(), d_M, input.M.size() * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&h_contradiction, d_contradiction,sizeof(int), cudaMemcpyDeviceToHost);
 
     // Pulizia della memoria
     cudaFree(d_M); cudaFree(d_head); cudaFree(d_bound); 

@@ -33,12 +33,14 @@ for test_file in tests/sudoku/input/*.in; do
     RES_FILE="tests/sudoku/results/${filename}.res"
     NSYS_REP="tests/sudoku/output/${filename}_report"
     STATS_LOG="tests/sudoku/output/${filename}_nsys_stats.log"
-    NCU_LOG="tests/sudoku/output/${filename}.ncu"
+    #NCU_LOG="tests/sudoku/output/${filename}.ncu"
     
     # Esegue l'eseguibile tramite nsys
     # L'output standard del programma va in .tmp, mentre le statistiche di nsys (stderr) vanno in .log
-    #nsys profile -t cuda --stats=true --force-overwrite=true -o "$NSYS_REP" "$EXEC" < "$test_file" > "$TMP_OUT" 2> "$STATS_LOG"
-    ncu --set full -o "$NCU_LOG" "$EXEC" < "$test_file" > "$TMP_OUT" 2> "$STATS_LOG"
+    #
+    nsys profile -t cuda --force-overwrite=true -o "$NSYS_REP" "$EXEC" < "$test_file" > "$TMP_OUT" 2> /dev/null
+    nsys stats "${NSYS_REP}.nsys-rep" >> "$STATS_LOG" 2>&1
+    #ncu --set full -o "$NCU_LOG" "$EXEC" < "$test_file" > "$TMP_OUT" 2> "$STATS_LOG"
     
     python3 dimacs_to_compact.py "$TMP_OUT" > "$FINAL_OUT"
     
@@ -65,8 +67,8 @@ rm -f tests/sudoku/input/*
 rm -f tests/sudoku/results/*
 # Se non hai intenzione di aprire i report grafici nella GUI di Nsight Systems, 
 # puoi decommentare le righe seguenti per risparmiare spazio su disco:
-# rm -f tests/sudoku/output/*.nsys-rep
-# rm -f tests/sudoku/output/*.sqlite
+rm -f tests/sudoku/output/*.nsys-rep
+rm -f tests/sudoku/output/*.sqlite
 
 echo "================================================================="
 echo " Summary: $PASSED / $TOTAL tests passed."

@@ -33,10 +33,12 @@ for test_file in tests/sudoku/input/*.in; do
     RES_FILE="tests/sudoku/results/${filename}.res"
     NSYS_REP="tests/sudoku/output/${filename}_report"
     STATS_LOG="tests/sudoku/output/${filename}_nsys_stats.log"
+    NCU_LOG="tests/sudoku/output/${filename}.ncu"
     
     # Esegue l'eseguibile tramite nsys
     # L'output standard del programma va in .tmp, mentre le statistiche di nsys (stderr) vanno in .log
-    nsys profile -t cuda --stats=true --force-overwrite=true -o "$NSYS_REP" "$EXEC" < "$test_file" > "$TMP_OUT" 2> "$STATS_LOG"
+    #nsys profile -t cuda --stats=true --force-overwrite=true -o "$NSYS_REP" "$EXEC" < "$test_file" > "$TMP_OUT" 2> "$STATS_LOG"
+    ncu --set full -o "$NCU_LOG" "$EXEC" < "$test_file" > "$TMP_OUT" 2> "$STATS_LOG"
     
     python3 dimacs_to_compact.py "$TMP_OUT" > "$FINAL_OUT"
     
@@ -50,14 +52,15 @@ for test_file in tests/sudoku/input/*.in; do
         cat "$FINAL_OUT"
         echo "Expected:"
         cat "$RES_FILE"
-        echo -e "       \033[34m↳ Statistiche CUDA salvate in:\033[0m $STATS_LOG"
+        echo -e "       \033[34m↳ Statistiche CUDA salvate in:\033[0m $NCU_LOG"
         ((FAILED++))
     fi
 done
 
 # Clean up temp log
 # ATTENZIONE: Modificato per NON eliminare i log .log appena generati e i file di input/risultati.
-rm -f tests/sudoku/output/*
+rm -f tests/sudoku/output/*.tmp
+rm -f tests/sudoku/output/*.out
 rm -f tests/sudoku/input/*
 rm -f tests/sudoku/results/*
 # Se non hai intenzione di aprire i report grafici nella GUI di Nsight Systems, 

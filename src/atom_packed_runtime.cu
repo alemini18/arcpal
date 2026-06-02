@@ -321,7 +321,7 @@ bool run_propagation_atom_oriented(PropagatorInput& input, ReverseTables& revt) 
     int blocksPerGrid = (input.num_rules + tilesPerBlock - 1) / tilesPerBlock;
 
 
-    init_Sums_kernel<<<blocksPerGrid, threadsPerBlock>>>(
+    init_Sums_kernel<TILE_SIZE><<<blocksPerGrid, threadsPerBlock>>>(
         d_M, d_rule_offsets, d_flat_literals, d_flat_weights, 
         d_S_sat, d_S_undef, d_touched_rules, input.num_rules
     );

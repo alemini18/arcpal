@@ -61,10 +61,10 @@ __global__ void propagation_kernel(
     S_undef_shared[threadIdx.x] = partial_S_undef;
     __syncthreads();
 
-    for(int offset = blockDim.x/2; offset>0;offset/=2){
+    for(int offset = blockDim.x / 2; offset > 0; offset /= 2){
         if(threadIdx.x < offset){
-        S_sat_shared[threadIdx.x] += S_sat_shared[threadIdx.x+offset];
-        S_undef_shared[threadIdx.x] += S_undef_shared[threadIdx.x+offset];
+        S_sat_shared[threadIdx.x] += S_sat_shared[threadIdx.x + offset];
+        S_undef_shared[threadIdx.x] += S_undef_shared[threadIdx.x + offset];
         }
         __syncthreads();
     }
@@ -151,7 +151,6 @@ bool run_propagation(PropagatorInput& input) {
     int sharedMemSize = threadsPerBlock * 2 * sizeof(int);
     int h_changed, h_contradiction;
 
-    //printf("--- Inizio Propagazione ---\n");
     do {
         h_changed = 0;
         cudaMemcpy(d_changed, &h_changed, sizeof(int), cudaMemcpyHostToDevice);
@@ -177,21 +176,9 @@ bool run_propagation(PropagatorInput& input) {
 }
 
 int main() {
-
-
-    try {
-        PropagatorInput input = parse_dimacs_input();
-        
-        //printf("Parsing completato: %d atomi, %d regole.\n", input.num_atoms, input.num_rules);
-
-        bool contradiction = run_propagation(input);
-
-        print_structure(input);
-
-    } catch (const std::exception& e) {
-        std::cerr << "\nEccezione catturata: " << e.what() << std::endl;
-        return 1;
-    }
+    PropagatorInput input = parse_dimacs_input();
+    bool contradiction = run_propagation(input);
+    print_structure(input);
 
     return 0;
 }

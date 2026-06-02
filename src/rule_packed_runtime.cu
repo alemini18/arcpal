@@ -184,17 +184,9 @@ bool run_propagation(PropagatorInput& input) {
 }
 
 int main() {
-    try {
-        PropagatorInput input = parse_dimacs_input();
-        
-        bool contradiction = run_propagation(input);
-
-        print_structure(input);
-
-    } catch (const std::exception& e) {
-        std::cerr << "\nEccezione catturata: " << e.what() << std::endl;
-        return 1;
-    }
+    PropagatorInput input = parse_dimacs_input();
+    bool contradiction = run_propagation(input);
+    print_structure(input);
 
     return 0;
 }

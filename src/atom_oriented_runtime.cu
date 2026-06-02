@@ -318,16 +318,17 @@ bool run_propagation_atom_oriented(PropagatorInput& input, ReverseTables& revt) 
     int h_contradiction = 0;
     int h_num_out = 0;
     
-    int init_blocks = (input.num_rules + 255) / 256;
-    int sizeMemShared = 256*2*sizeof(int);
-    init_Sums_kernel<<<init_blocks, 256,sizeMemShared>>>(
+    const int threadsPerBlock = 256;
+    int init_blocks = (input.num_rules + threadsPerBlock - 1) / threadsPerBlock;
+    int sizeMemShared = threadsPerBlock*2*sizeof(int);
+    init_Sums_kernel<<<init_blocks, threadsPerBlock,sizeMemShared>>>(
         d_M, d_rule_offsets, d_flat_literals, d_flat_weights, 
         d_S_sat, d_S_undef, d_touched_rules, input.num_rules
     );
     cudaDeviceSynchronize();
 
     cudaMemset(d_num_out, 0, sizeof(int));
-    evaluate_deductions_kernel<<<input.num_rules, 256>>>(
+    evaluate_deductions_kernel<<<input.num_rules, threadsPerBlock>>>(
         d_M, d_head, d_bound, d_rule_offsets, d_flat_literals, d_flat_weights,
         d_S_sat, d_S_undef, d_touched_rules, input.num_rules, d_contradiction, d_queue_out, d_num_out
     );
@@ -345,8 +346,8 @@ bool run_propagation_atom_oriented(PropagatorInput& input, ReverseTables& revt) 
         int h_num_in = h_num_out;
         cudaMemset(d_num_out, 0, sizeof(int));
 
-        int prop_blocks = (h_num_in + 255) / 256;
-        propagate_modifications_kernel<<<prop_blocks, 256>>>(
+        int prop_blocks = (h_num_in + threadsPerBlock - 1) / threadsPerBlock;
+        propagate_modifications_kernel<<<prop_blocks, threadsPerBlock>>>(
             d_queue_in, h_num_in, d_M,
             d_atom_body_offsets, d_flat_atom_body_rules, d_flat_atom_body_lits, d_flat_atom_body_weights,
             d_atom_head_offsets, d_flat_atom_head_rules,
@@ -354,7 +355,7 @@ bool run_propagation_atom_oriented(PropagatorInput& input, ReverseTables& revt) 
         );
         cudaDeviceSynchronize();
 
-        evaluate_deductions_kernel<<<input.num_rules, 256>>>(
+        evaluate_deductions_kernel<<<input.num_rules, threadsPerBlock>>>(
             d_M, d_head, d_bound, d_rule_offsets, d_flat_literals, d_flat_weights,
             d_S_sat, d_S_undef, d_touched_rules, input.num_rules, d_contradiction, d_queue_out, d_num_out
         );
@@ -377,15 +378,11 @@ bool run_propagation_atom_oriented(PropagatorInput& input, ReverseTables& revt) 
 }
 
 int main() {
-    try {
-        PropagatorInput input = parse_dimacs_input();
-        ReverseTables revt;
-        build_reverse_tables(input, revt);
-        bool contradiction = run_propagation_atom_oriented(input,revt);
-        print_structure(input);
-    } catch (const std::exception& e) {
-        std::cerr << "\nEccezione catturata: " << e.what() << std::endl;
-        return 1;
-    }
+    PropagatorInput input = parse_dimacs_input();
+    ReverseTables revt;
+    build_reverse_tables(input, revt);
+    bool contradiction = run_propagation_atom_oriented(input,revt);
+    print_structure(input);
+
     return 0;
 }

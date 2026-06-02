@@ -328,7 +328,7 @@ bool run_propagation_atom_oriented(PropagatorInput& input, ReverseTables& revt) 
     cudaDeviceSynchronize();
 
     cudaMemset(d_num_out, 0, sizeof(int));
-    evaluate_deductions_kernel<<<input.num_rules, 256>>>(
+    evaluate_deductions_kernel<TILE_SIZE><<<input.num_rules, 256>>>(
         d_M, d_head, d_bound, d_rule_offsets, d_flat_literals, d_flat_weights,
         d_S_sat, d_S_undef, d_touched_rules, input.num_rules, d_contradiction, d_queue_out, d_num_out
     );

@@ -26,9 +26,10 @@ __global__ void propagation_kernel(
     int* M,
     const int* head, const int* bound, const int* rule_offsets,
     const int* flat_literals, const int* flat_weights,
-    int num_rules, int* changed, int* contradiction
+    int num_rules, int* global_changed, int* global_contradiction
 ) {
-    if (*contradiction) return;
+    
+    cg::grid_group grid = cg::this_grid();
 
     // Inizializzazione Cooperative Groups e suddivisione in Tile
     cg::thread_block block = cg::this_thread_block();
@@ -43,6 +44,11 @@ __global__ void propagation_kernel(
     int end_idx = rule_offsets[rule_id + 1];
     int num_literals = end_idx - start_idx;
     int B = bound[rule_id];
+
+    bool flag = true;
+    while(flag){
+
+    if (*global_contradiction) break;
 
     int partial_S_sat = 0;
     int partial_S_undef = 0;
@@ -109,16 +115,32 @@ __global__ void propagation_kernel(
             if (M[atom] == UNDEF) {
                 if (h_sat) { 
                     if (S_max - weight < B) { 
-                        atomicDeduce(M, atom, lit_val, contradiction, changed);
+                        atomicDeduce(M, atom, lit_val, global_contradiction, global_changed);
                     }
                 } else { 
                     if (S_sat + weight >= B) { 
-                        atomicDeduce(M, atom, lit_not_val, contradiction, changed);
+                        atomicDeduce(M, atom, lit_not_val, global_contradiction, global_changed);
                     }
                 }
             }
         }
     }
+     grid.sync();
+
+        if (blockIdx.x == 0 && threadIdx.x == 0) {
+            if (*global_changed == 0 || *global_contradiction == 1) {
+                *global_changed = -1; 
+            } else {
+                *global_changed = 0; 
+            }
+        }
+
+        grid.sync();
+
+        if (*global_changed == -1) {
+            flag = false;
+        }
+}
 }
 
 bool run_propagation(PropagatorInput& input) {
@@ -154,23 +176,31 @@ bool run_propagation(PropagatorInput& input) {
     int tilesPerBlock = threadsPerBlock / TILE_SIZE; 
     int blocksPerGrid = (input.num_rules + tilesPerBlock - 1) / tilesPerBlock;
 
-    int h_changed, h_contradiction;
+    void* kernelArgs[] = {
+    (void*)&d_M,
+    (void*)&d_head,
+    (void*)&d_bound,
+    (void*)&d_rule_offsets,
+    (void*)&d_flat_literals,
+    (void*)&d_flat_weights,
+    (void*)&input.num_rules,
+    (void*)&d_changed,
+    (void*)&d_contradiction
+};
 
-    // Loop di propagazione a punto fisso
-    do {
-        h_changed = 0;
-        cudaMemcpy(d_changed, &h_changed, sizeof(int), cudaMemcpyHostToDevice);
+    cudaError_t err = cudaLaunchCooperativeKernel(
+        propagation_kernel<TILE_SIZE>,
+        dim3(blocksPerGrid), dim3(threadsPerBlock),
+        kernelArgs,
+        0, 0
+    );
 
-        propagation_kernel<TILE_SIZE><<<blocksPerGrid, threadsPerBlock>>>(
-            d_M, d_head, d_bound, d_rule_offsets, d_flat_literals, d_flat_weights,
-            input.num_rules, d_changed, d_contradiction
-        );
-        cudaDeviceSynchronize();
+    if (err != cudaSuccess){
+        std::cerr << "Errore CUDA Launch: " << cudaGetErrorString(err) << "\n";
+        return 0;
+    }
 
-        cudaMemcpy(&h_changed, d_changed, sizeof(int), cudaMemcpyDeviceToHost);
-        cudaMemcpy(&h_contradiction, d_contradiction, sizeof(int), cudaMemcpyDeviceToHost);
-
-    } while (h_changed == 1 && h_contradiction == 0);
+    cudaDeviceSynchronize();
 
     // Recupero del modello aggiornato
     cudaMemcpy(input.M.data(), d_M, input.M.size() * sizeof(int), cudaMemcpyDeviceToHost);

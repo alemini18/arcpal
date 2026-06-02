@@ -102,31 +102,56 @@ __global__ void init_Sums_kernel(
     const int* M, const int* rule_offsets, const int* flat_literals, const int* flat_weights,
     int* S_sat, int* S_undef, int* touched_rules, int num_rules
 ) {
-    int rule_id = blockIdx.x * blockDim.x + threadIdx.x;
+    int rule_id = blockIdx.x;
     if (rule_id >= num_rules) return;
 
     int start_idx = rule_offsets[rule_id];
     int end_idx = rule_offsets[rule_id + 1];
+    int num_literals = end_idx - start_idx;
+    int B = bound[rule_id];
 
-    int partial_sat = 0;
-    int partial_undef = 0;
+    extern __shared__ int shared_mem[];
+    int* S_sat_shared = shared_mem;                      
+    int* S_undef_shared = &shared_mem[blockDim.x];       
 
-    for (int i = start_idx; i < end_idx; i++) {
-        int lit = flat_literals[i];
-        int weight = flat_weights[i];
+    S_sat_shared[threadIdx.x] = 0;
+    S_undef_shared[threadIdx.x] = 0;
+    __syncthreads();
+
+    int partial_S_sat = 0;
+    int partial_S_undef = 0;
+
+    for (int i = threadIdx.x; i < num_literals; i += blockDim.x) {
+        int lit_idx = start_idx + i;
+        int lit = flat_literals[lit_idx];
         int atom = abs(lit);
-        int m_val = M[atom];
+        int weight = flat_weights[lit_idx]; 
 
+        int m_val = M[atom];
+        
         if (m_val == UNDEF) {
-            partial_undef += weight;
+            partial_S_undef += weight;
         } else if (((lit > 0) && (m_val == TRUE)) || ((lit < 0) && (m_val == FALSE))) {
-            partial_sat += weight;
+            partial_S_sat += weight;
         }
     }
 
-    S_sat[rule_id] = partial_sat;
-    S_undef[rule_id] = partial_undef;
-    touched_rules[rule_id] = 1;
+    S_sat_shared[threadIdx.x] = partial_S_sat;
+    S_undef_shared[threadIdx.x] = partial_S_undef;
+    __syncthreads();
+
+    for(int offset = blockDim.x/2; offset>0;offset/=2){
+        if(threadIdx.x < offset){
+        S_sat_shared[threadIdx.x] += S_sat_shared[threadIdx.x+offset];
+        S_undef_shared[threadIdx.x] += S_undef_shared[threadIdx.x+offset];
+        }
+        __syncthreads();
+    }
+    if(threadIdx.x == 0){
+        S_sat[rule_id] = S_sat_shared[0];
+        S_undef[rule_id] = S_undef_shared[0];
+        touched_rules[rule_id] = 1;
+    }
 }
 
 
@@ -295,7 +320,8 @@ bool run_propagation_atom_oriented(PropagatorInput& input, ReverseTables& revt) 
     int h_num_out = 0;
     
     int init_blocks = (input.num_rules + 255) / 256;
-    init_Sums_kernel<<<init_blocks, 256>>>(
+    int sizeMemShared = 256*2*sizeof(int);
+    init_Sums_kernel<<<init_blocks, 256,sizeMemShared>>>(
         d_M, d_rule_offsets, d_flat_literals, d_flat_weights, 
         d_S_sat, d_S_undef, d_touched_rules, input.num_rules
     );

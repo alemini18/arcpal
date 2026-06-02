@@ -31,13 +31,12 @@ __global__ void propagation_kernel(
     int num_literals = end_idx - start_idx;
     int B = bound[rule_id];
 
-    __shared__ int S_sat_shared;
-    __shared__ int S_undef_shared;
+    extern __shared__ int shared_mem[];
+    int* S_sat_shared = shared_mem;                      
+    int* S_undef_shared = &shared_mem[blockDim.x];       
 
-    if (threadIdx.x == 0) {
-        S_sat_shared = 0;
-        S_undef_shared = 0;
-    }
+    S_sat_shared[threadIdx.x] = 0;
+    S_undef_shared[threadIdx.x] = 0;
     __syncthreads();
 
     int partial_S_sat = 0;
@@ -58,12 +57,20 @@ __global__ void propagation_kernel(
         }
     }
 
-    atomicAdd(&S_sat_shared, partial_S_sat);
-    atomicAdd(&S_undef_shared, partial_S_undef);
+    S_sat_shared[threadIdx.x] = partial_S_sat;
+    S_undef_shared[threadIdx.x] = partial_S_undef;
     __syncthreads();
 
-    int S_sat = S_sat_shared;
-    int S_undef = S_undef_shared;
+    for(int offset = blockDim.x/2; offset>0;offset/=2){
+        if(threadIdx.x < offset){
+        S_sat_shared[threadIdx.x] += S_sat_shared[threadIdx.x+offset];
+        S_undef_shared[threadIdx.x] += S_undef_shared[threadIdx.x+offset];
+        }
+        __syncthreads();
+    }
+
+    int S_sat = S_sat_shared[0];
+    int S_undef = S_undef_shared[0];
     int S_max = S_sat + S_undef;
 
     int h_lit = head[rule_id];
@@ -141,6 +148,7 @@ bool run_propagation(PropagatorInput& input) {
 
     int threadsPerBlock = 256; 
     int blocksPerGrid = input.num_rules;
+    int sharedMemSize = threadsPerBlock * 2 * sizeof(int);
     int h_changed, h_contradiction;
 
     //printf("--- Inizio Propagazione ---\n");
@@ -148,7 +156,7 @@ bool run_propagation(PropagatorInput& input) {
         h_changed = 0;
         cudaMemcpy(d_changed, &h_changed, sizeof(int), cudaMemcpyHostToDevice);
 
-        propagation_kernel<<<blocksPerGrid, threadsPerBlock>>>(
+        propagation_kernel<<<blocksPerGrid, threadsPerBlock, sharedMemSize>>>(
             d_M, d_head, d_bound, d_rule_offsets, d_flat_literals, d_flat_weights,
             input.num_rules, d_changed, d_contradiction
         );

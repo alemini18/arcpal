@@ -319,9 +319,9 @@ bool run_propagation_atom_oriented(PropagatorInput& input, ReverseTables& revt) 
     int h_num_out = 0;
     
     const int threadsPerBlock = 256;
-    int init_blocks = (input.num_rules + threadsPerBlock - 1) / threadsPerBlock;
-    int sizeMemShared = threadsPerBlock*2*sizeof(int);
-    init_Sums_kernel<<<init_blocks, threadsPerBlock,sizeMemShared>>>(
+
+    int sharedMemSize = threadsPerBlock*2*sizeof(int);
+    init_Sums_kernel<<<input.num_rules, threadsPerBlock,sharedMemSize>>>(
         d_M, d_rule_offsets, d_flat_literals, d_flat_weights, 
         d_S_sat, d_S_undef, d_touched_rules, input.num_rules
     );

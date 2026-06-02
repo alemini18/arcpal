@@ -108,7 +108,6 @@ __global__ void init_Sums_kernel(
     int start_idx = rule_offsets[rule_id];
     int end_idx = rule_offsets[rule_id + 1];
     int num_literals = end_idx - start_idx;
-    int B = bound[rule_id];
 
     extern __shared__ int shared_mem[];
     int* S_sat_shared = shared_mem;                      

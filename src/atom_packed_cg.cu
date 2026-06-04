@@ -9,6 +9,8 @@
 #include "../include/parser.hpp" 
 #include "../include/printer.hpp" 
 
+namespace cg = cooperative_groups;
+
 struct ReverseTables{
     std::vector<int> atom_body_offsets;
     std::vector<int> flat_atom_body_rules;
@@ -146,17 +148,18 @@ __global__ void persistent_fixed_point_kernel(
     cooperative_groups::grid_group grid = cooperative_groups::this_grid();
     
     int* queue_out = d_queue_0;
+    cg::thread_block block = cg::this_thread_block();
     cg::thread_block_tile<TILE_SIZE> tile = cg::tiled_partition<TILE_SIZE>(block);
 
     int rule_id = (blockIdx.x * tile.meta_group_size()) + tile.meta_group_rank();
 
-        if (*d_contradiction) break;
-        if (d_touched_rules[rule_id] == 0) continue;
-
-        if (threadIdx.x == 0) {
+        int h_atom, h_val, h_not_val, B, S_max, S_sat, S_undef;
+        int start_idx, end_idx, h_lit;
+        if(rule_id < num_rules && !*d_contradiction && d_touched_rules[rule_id] != 0){
+            tile.sync();
+        if (tile.thread_rank() == 0) {
             d_touched_rules[rule_id] = 0;
         }
-
         int start_idx = d_rule_offsets[rule_id];
         int end_idx = d_rule_offsets[rule_id + 1];
         int B = d_bound[rule_id];
@@ -177,8 +180,8 @@ __global__ void persistent_fixed_point_kernel(
                 atomicDeduceAtomQueue(d_M, h_atom, h_not_val, d_contradiction, queue_out, d_num_out);
             }
         }
+    
         tile.sync();
-
         int h_val_cur = d_M[h_atom];
         
         if (h_val_cur != UNDEF) {
@@ -205,8 +208,7 @@ __global__ void persistent_fixed_point_kernel(
                 }
             }
         }
-       tile.sync();
-
+        }
     grid.sync();
 
     // --- PERSISTENT FIXED-POINT LOOP ---
@@ -228,6 +230,9 @@ __global__ void persistent_fixed_point_kernel(
 
         int* queue_in  = (*d_swap_flag == 1) ? d_queue_0 : d_queue_1;
         queue_out      = (*d_swap_flag == 1) ? d_queue_1 : d_queue_0;
+
+  
+         for(int idx = grid.thread_rank();idx<*d_num_in;idx+=grid.size()){
 
             int atom = queue_in[idx];
             int m_val = d_M[atom]; 
@@ -257,12 +262,12 @@ __global__ void persistent_fixed_point_kernel(
                 d_touched_rules[rule_id] = 1;
             }
         
-
+        }
         grid.sync();
 
             if (*d_contradiction) break;
-            if (d_touched_rules[rule_id] == 0) continue;
-
+            if (d_touched_rules[rule_id] != 0){
+                tile.sync();
             if (tile.thread_rank() == 0) {
                 d_touched_rules[rule_id] = 0;
             }
@@ -315,8 +320,7 @@ __global__ void persistent_fixed_point_kernel(
                     }
                 }
             }
-            tile.sync();
-
+        }
         grid.sync();
     }
 }
@@ -382,17 +386,18 @@ bool run_propagation_atom_oriented(PropagatorInput& input, ReverseTables& revt) 
     
     int initial_swap_flag = 0;
     cudaMemcpy(d_swap_flag, &initial_swap_flag, sizeof(int), cudaMemcpyHostToDevice);
-
+    
     const int TILE_SIZE = 16;
+    const int threadsPerBlock = 256; 
+    int tilesPerBlock = threadsPerBlock / TILE_SIZE; 
+    int blocksPerGrid = (input.num_rules + tilesPerBlock - 1) / tilesPerBlock;
     // Initial sum calculation
-    int init_blocks = (input.num_rules + 255) / 256;
-    init_Sums_kernel<TILE_SIZE><<<init_blocks, 256>>>(
+    init_Sums_kernel<TILE_SIZE><<<blocksPerGrid, threadsPerBlock>>>(
         d_M, d_rule_offsets, d_flat_literals, d_flat_weights, 
         d_S_sat, d_S_undef, d_touched_rules, input.num_rules
     );
-    cudaDeviceSynchronize();
-
-    int launch_blocks = (input.num_rules + 255) / 256;
+    cudaDeviceSynchronize();    
+    
 
     // Launch single cooperative kernel to process the entire while loop
     void* kernel_args[] = {
@@ -406,7 +411,7 @@ bool run_propagation_atom_oriented(PropagatorInput& input, ReverseTables& revt) 
         &d_queue_0, &d_queue_1, &d_num_out, &d_num_in, &d_swap_flag
     };
 
-    cudaLaunchCooperativeKernel((void*)persistent_fixed_point_kerne<TILE_SIZE>, launch_blocks, 256, kernel_args);
+    cudaLaunchCooperativeKernel((void*)persistent_fixed_point_kernel<TILE_SIZE>, blocksPerGrid, threadsPerBlock, kernel_args);
     cudaDeviceSynchronize();
 
     int h_contradiction = 0;

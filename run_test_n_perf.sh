@@ -45,9 +45,9 @@ for test_file in tests/sudoku/input/*.in; do
     nsys stats --force-report=true "${NSYS_REP}.nsys-rep" >> "$STATS_LOG" 2>&1
     nsys stats --report=cuda_gpu_kern_sum --force-export=true --format=csv "${NSYS_REP}.nsys-rep" > "$STATS_CSV"
     
-    # 3. Accoda le statistiche al CSV globale, saltando l'intestazione e aggiungendo il nome del test
+    # 3. Accoda le statistiche al CSV globale, filtrando rigorosamente solo le righe contenenti dati
     if [ -s "$STATS_CSV" ]; then
-        tail -n +2 "$STATS_CSV" | awk -v f="$filename" -F',' 'NF>0 {print f "," $0}' >> "$GLOBAL_CSV"
+        awk -v f="$filename" -F',' '$1 ~ /^[0-9]+\.?[0-9]*$/ {print f "," $0}' "$STATS_CSV" >> "$GLOBAL_CSV"
     fi
     #ncu --set full -o "$NCU_LOG" "$EXEC" < "$test_file" > "$TMP_OUT" 2> "$STATS_LOG"
     

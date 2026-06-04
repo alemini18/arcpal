@@ -16,6 +16,8 @@ echo "================================================================="
 PASSED=0
 FAILED=0
 TOTAL=0
+GLOBAL_CSV="tests/sudoku/output/nsys_summary.csv"
+echo "Test File,Time (%),Total Time (ns),Instances,Avg (ns),Med (ns),Min (ns),Max (ns),StdDev (ns),Kernel Name" > "$GLOBAL_CSV"
 
 python3 compact_to_dimacs.py "$2"
 

@@ -153,8 +153,6 @@ __global__ void persistent_fixed_point_kernel(
 
     int rule_id = (blockIdx.x * tile.meta_group_size()) + tile.meta_group_rank();
 
-        int h_atom, h_val, h_not_val, B, S_max, S_sat, S_undef;
-        int start_idx, end_idx, h_lit;
         if(rule_id < num_rules && !*d_contradiction && d_touched_rules[rule_id] != 0){
             tile.sync();
         if (tile.thread_rank() == 0) {

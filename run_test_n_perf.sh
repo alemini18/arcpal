@@ -40,8 +40,8 @@ for test_file in tests/sudoku/input/*.in; do
     # L'output standard del programma va in .tmp, mentre le statistiche di nsys (stderr) vanno in .log
     #
     nsys profile -t cuda --force-overwrite=true -o "$NSYS_REP" "$EXEC" < "$test_file" > "$TMP_OUT" 2> /dev/null
-    nsys stats "${NSYS_REP}.nsys-rep" >> "$STATS_LOG" 2>&1
-    nsys stats --report cuda_gpu_kern_sum --format csv -q "${NSYS_REP}.nsys-rep" > "$STATS_CSV"
+    nsys stats --force-report=true "${NSYS_REP}.nsys-rep" >> "$STATS_LOG" 2>&1
+    nsys stats --report --force-report=true cuda_gpu_kern_sum --format csv -q "${NSYS_REP}.nsys-rep" > "$STATS_CSV"
     
     # 3. Accoda le statistiche al CSV globale, saltando l'intestazione e aggiungendo il nome del test
     if [ -s "$STATS_CSV" ]; then

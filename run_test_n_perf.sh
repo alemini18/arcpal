@@ -41,7 +41,7 @@ for test_file in tests/sudoku/input/*.in; do
     #
     nsys profile -t cuda --force-overwrite=true -o "$NSYS_REP" "$EXEC" < "$test_file" > "$TMP_OUT" 2> /dev/null
     nsys stats --force-report=true "${NSYS_REP}.nsys-rep" >> "$STATS_LOG" 2>&1
-    nsys stats -r --force-report=true cuda_gpu_kern_sum --format csv "${NSYS_REP}.nsys-rep" > "$STATS_CSV"
+    nsys stats -r cuda_gpu_kern_sum --format csv "${NSYS_REP}.nsys-rep" > "$STATS_CSV"
     
     # 3. Accoda le statistiche al CSV globale, saltando l'intestazione e aggiungendo il nome del test
     if [ -s "$STATS_CSV" ]; then

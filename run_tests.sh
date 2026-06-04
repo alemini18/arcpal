@@ -2,6 +2,7 @@
 
 # Define paths
 EXEC="$1"
+exec_name=$(basename "$EXEC")
 
 # Ensure the executable exists
 if [ ! -f "$EXEC" ]; then
@@ -20,8 +21,8 @@ TOTAL=0
 python3 compact_to_dimacs.py "$2"
 
 # 1. Definisci i percorsi dei CSV globali e rimuovi i vecchi di run precedenti
-GLOBAL_KERN_CSV="tests/sudoku/output/{$EXEC}_nsys_kernels_summary.csv"
-GLOBAL_MEM_CSV="tests/sudoku/output/{$EXEC}_nsys_memory_summary.csv"
+GLOBAL_KERN_CSV="tests/sudoku/output/${exec_name}_nsys_kernels_summary.csv"
+GLOBAL_MEM_CSV="tests/sudoku/output/${exec_name}_nsys_memory_summary.csv"
 rm -f "$GLOBAL_KERN_CSV" "$GLOBAL_MEM_CSV"
 
 # Loop through all .in files in the test directory

@@ -4,6 +4,6 @@
 #include "parser.hpp"
 
 
-void print_structure(PropagatorInput& data, bool is_contradiction = false);
+void print_structure(DIMACSInput& data, bool is_contradiction = false);
 
 #endif // PRINTER_HPP

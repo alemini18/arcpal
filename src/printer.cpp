@@ -1,46 +1,49 @@
 #include "../include/parser.hpp" 
 #include "../include/printer.hpp"
 #include <iostream>
-#include <string>
-#include <vector>
 
 using namespace std;
 
-void print_structure(PropagatorInput& data, bool is_contradiction) {
+void print_structure(DIMACSInput& data, bool is_contradiction) {
 
-    cout << "s " << (is_contradiction ? "CONTRADICTION" : "SUCCESS") << "\n";
+    if(is_contradiction){
+        cout << "s CONTRADICTION\n";
+        return;
+    }
+
+    cout << "s SUCCESS\n";
     cout << "v ";
         
     for (int atom = 1; atom <= data.num_atoms; atom++) {
-        int state = data.M[atom];
-        if (state == TRUE) {
+        int val = data.M[atom];
+        if (val == TRUE) {
             cout << atom << " ";
-        } else if (state == FALSE) {
+        } else if (val == FALSE) {
             cout << -atom << " ";
         }
     }
-    cout << "0\n";
+    cout << "0" << endl;
     cout << "d ";
 
     vector<int> undef_rules;
 
-    for (int r = 1; r <= data.num_rules; r++) {
-        int head = data.head[r-1];
-        int bound = data.bound[r-1];
-        int start_ptr = data.rule_offsets[r-1];
-        int end_ptr = data.rule_offsets[r];
+    for (int r = 0 ; r < data.num_rules; r++) {
+        int head = data.head[r];
+        int bound = data.bound[r];
+        int start_idx = data.rule_offsets[r];
+        int end_idx = data.rule_offsets[r + 1];
 
         int S_sat = 0;
         int S_undef = 0;
 
-        for (int i = start_ptr; i < end_ptr; i++) {
-            int lit = data.flat_literals[i];
+        for (int i = start_idx; i < end_idx; i++) {
+            int lit = data.flat_lits[i];
             int weight = data.flat_weights[i];
             int atom = abs(lit);
             int lit_sat = (lit > 0) ? TRUE : FALSE; 
-            int lit_neg = (lit > 0) ? FALSE : TRUE;
+            int lit_not = (lit > 0) ? FALSE : TRUE;
             
-            int lit_val = (data.M[atom] == TRUE) ? lit_sat : lit_neg;
+            int lit_val = (data.M[atom] == TRUE) ? lit_sat : lit_not;
             if (lit_val == TRUE) {
                 S_sat += weight;
             } else if (lit_val == UNDEF) {
@@ -51,30 +54,29 @@ void print_structure(PropagatorInput& data, bool is_contradiction) {
         int S_max = S_sat + S_undef;
         int h_atom = abs(head);
         int h_sat = (head > 0) ? TRUE : FALSE; 
-        int h_neg = (head > 0) ? FALSE : TRUE;
+        int h_not = (head > 0) ? FALSE : TRUE;
 
-        int head_status = (data.M[h_atom] == TRUE) ? h_sat : h_neg;
+        int head_val = (data.M[h_atom] == TRUE) ? h_sat : h_not;
         
-        int body_status = UNDEF;
+        int body_val = UNDEF;
         if (S_sat >= bound) {
-            body_status = TRUE;
+            body_val = TRUE;
         } else if (S_max < bound) {
-            body_status = FALSE;
+            body_val = FALSE;
         }
 
-        string rule_status;
-        if (head_status == UNDEF || body_status == UNDEF) {
+        if (head_val == UNDEF || body_val == UNDEF) {
             undef_rules.push_back(r);
-        } else if (head_status == body_status) {
+        } else if (head_val == body_val) {
             cout << r << " ";
         } else {
             cout << -r << " ";
         }
     }
-    cout << "0\n";
+    cout << "0" << endl;
     cout << "u ";
     for(auto x: undef_rules) {
         cout << x << " ";
     }
-    cout << "0\n";
+    cout << "0" << endl;
 }

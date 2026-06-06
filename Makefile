@@ -1,20 +1,49 @@
-CXX := g++
-CXXFLAGS := -std=c++17 -O2
-TARGET := serial_naive
+# ─── Compilers ───────────────────────────────────────────────
+NVCC     := nvcc
+CXX      := g++
+NVCCFLAGS := -std=c++17 -O2
+CXXFLAGS  := -std=c++17 -O2
 
-SRCS_BASE := src/parser.cpp src/printer.cpp
-SRCS_NAIVE := benchmarks/serial_naive.cpp $(SRCS_BASE)
-OBJS_BASE := $(SRCS_BASE:.cpp=.o)
-OBJS_NAIVE := $(SRCS_NAIVE:.cpp=.o)
+# ─── Directories ─────────────────────────────────────────────
+SRC_DIR   := src
+BENCH_DIR := benchmarks
+INC_DIR   := include
+BUILD_DIR := build
 
+# ─── Common CPP sources (shared library code) ───────────────
+COMMON_CPP := $(wildcard $(SRC_DIR)/*.cpp)
+COMMON_OBJ := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(COMMON_CPP))
 
-all: $(TARGET)
+# ─── CUDA targets (each .cu in src/ → one binary) ───────────
+CU_SRCS   := $(wildcard $(SRC_DIR)/*.cu)
+CU_TARGETS := $(patsubst $(SRC_DIR)/%.cu,$(BUILD_DIR)/%,$(CU_SRCS))
 
-$(TARGET): $(OBJS_NAIVE)
-	$(CXX) $(CXXFLAGS) -o $@ $(OBJS_NAIVE)
+# ─── Benchmark targets (each .cpp in benchmarks/ → one binary)
+BENCH_SRCS    := $(wildcard $(BENCH_DIR)/*.cpp)
+BENCH_TARGETS := $(patsubst $(BENCH_DIR)/%.cpp,$(BUILD_DIR)/%,$(BENCH_SRCS))
 
-%.o: %.cpp include/parser.hpp include/utils.hpp include/pretty_printer.hpp include/printer.hpp
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+# ─── All targets ─────────────────────────────────────────────
+ALL_TARGETS := $(CU_TARGETS) $(BENCH_TARGETS)
+
+.PHONY: all clean
+
+all: $(ALL_TARGETS)
+
+# ─── Common .cpp → .o ───────────────────────────────────────
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -I$(INC_DIR) -c $< -o $@
+
+# ─── CUDA binary (link .cu + common objects) ─────────────────
+$(BUILD_DIR)/%: $(SRC_DIR)/%.cu $(COMMON_OBJ) | $(BUILD_DIR)
+	$(NVCC) $(NVCCFLAGS) -I$(INC_DIR) -o $@ $< $(COMMON_OBJ)
+
+# ─── Benchmark binary (link .cpp + common objects) ───────────
+$(BUILD_DIR)/%: $(BENCH_DIR)/%.cpp $(COMMON_OBJ) | $(BUILD_DIR)
+	$(CXX) $(CXXFLAGS) -I$(INC_DIR) -o $@ $< $(COMMON_OBJ)
+
+# ─── Create build directory ─────────────────────────────────
+$(BUILD_DIR):
+	mkdir -p $(BUILD_DIR)
 
 clean:
-	rm -f $(TARGET) $(OBJS_BASE) $(OBJS_NAIVE)
+	rm -rf $(BUILD_DIR)

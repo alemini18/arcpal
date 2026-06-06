@@ -1,26 +1,21 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <vector>
-#include <iostream>
-#include <stdexcept>
 #include <cuda_runtime.h>
 
 #include "../include/parser.hpp" 
 #include "../include/printer.hpp" 
 
-__device__ void atomicDeduce(int* M, int atom_id, int deduced_val, int* contradiction, int* changed) {
-    int old_val = atomicCAS(&M[atom_id], UNDEF, deduced_val);
+__device__ void atomicAssign(int* M, int atom, int val, int* contradiction, int* changed) {
+    int old_val = atomicCAS(&M[atom], UNDEF, val);
     if (old_val == UNDEF) {
         *changed = 1;
-    } else if (old_val != deduced_val) {
-        *contradiction = 1; 
+    } else if (old_val != val) {
+        *contradiction = 1;
     }
 }
 
-__global__ void propagation_kernel(
+__global__ void kernel(
     int* M,
     const int* head, const int* bound, const int* rule_offsets,
-    const int* flat_literals, const int* flat_weights,
+    const int* flat_lits, const int* flat_weights,
     int num_rules, int* changed, int* contradiction
 ) {
     int rule_id = blockIdx.x;
@@ -28,7 +23,6 @@ __global__ void propagation_kernel(
 
     int start_idx = rule_offsets[rule_id];
     int end_idx = rule_offsets[rule_id + 1];
-    int num_literals = end_idx - start_idx;
     int B = bound[rule_id];
 
     extern __shared__ int shared_mem[];
@@ -42,11 +36,10 @@ __global__ void propagation_kernel(
     int partial_S_sat = 0;
     int partial_S_undef = 0;
 
-    for (int i = threadIdx.x; i < num_literals; i += blockDim.x) {
-        int lit_idx = start_idx + i;
-        int lit = flat_literals[lit_idx];
+    for (int i = start_idx + threadIdx.x; i < end_idx; i += blockDim.x) {
+        int lit = flat_lits[i];
         int atom = abs(lit);
-        int weight = flat_weights[lit_idx]; 
+        int weight = flat_weights[i]; 
 
         int m_val = M[atom];
         
@@ -81,25 +74,24 @@ __global__ void propagation_kernel(
     //  Body -> Head
     if (threadIdx.x == 0) {
         if (S_sat >= B) { 
-            atomicDeduce(M, h_atom, h_val, contradiction, changed);
+            atomicAssign(M, h_atom, h_val, contradiction, changed);
         } else if (S_max < B) { 
-            atomicDeduce(M, h_atom, h_not_val, contradiction, changed);
+            atomicAssign(M, h_atom, h_not_val, contradiction, changed);
         }
     }
     __syncthreads();
 
     // Head -> Body
-    int h_val_cur = M[h_atom];
+    h_val = M[h_atom];
 
-    if (h_val_cur != UNDEF) {
+    if (h_val != UNDEF) {
 
-        bool h_sat = ((h_lit > 0) && h_val_cur == TRUE) || ((h_lit < 0) && h_val_cur == FALSE);
+        bool h_sat = ((h_lit > 0) && h_val == TRUE) || ((h_lit < 0) && h_val == FALSE);
 
-        for (int i = threadIdx.x; i < num_literals; i += blockDim.x) {
-            int lit_idx = start_idx + i;
-            int lit = flat_literals[lit_idx];
+        for (int i = start_idx + threadIdx.x; i < end_idx; i += blockDim.x) {
+            int lit = flat_lits[i];
             int atom = abs(lit);
-            int weight = flat_weights[lit_idx];
+            int weight = flat_weights[i];
             
             int lit_val = (lit > 0) ? TRUE : FALSE;
             int lit_not_val = (lit > 0) ? FALSE : TRUE;
@@ -107,11 +99,11 @@ __global__ void propagation_kernel(
             if (M[atom] == UNDEF) {
                 if (h_sat) { 
                     if (S_max - weight < B) { 
-                        atomicDeduce(M, atom, lit_val, contradiction, changed);
+                        atomicAssign(M, atom, lit_val, contradiction, changed);
                     }
                 } else { 
                     if (S_sat + weight >= B) { 
-                        atomicDeduce(M, atom, lit_not_val, contradiction, changed);
+                        atomicAssign(M, atom, lit_not_val, contradiction, changed);
                     }
                 }
             }
@@ -120,8 +112,8 @@ __global__ void propagation_kernel(
 }
 
 
-bool run_propagation(PropagatorInput& input) {
-    int *d_M, *d_head, *d_bound, *d_rule_offsets, *d_flat_literals, *d_flat_weights;
+bool host(DIMACSInput& input) {
+    int *d_M, *d_head, *d_bound, *d_rule_offsets, *d_flat_lits, *d_flat_weights;
     int *d_changed, *d_contradiction;
 
     cudaMalloc(&d_M, input.M.size() * sizeof(int));
@@ -136,8 +128,8 @@ bool run_propagation(PropagatorInput& input) {
     cudaMalloc(&d_rule_offsets, input.rule_offsets.size() * sizeof(int));
     cudaMemcpy(d_rule_offsets, input.rule_offsets.data(), input.rule_offsets.size() * sizeof(int), cudaMemcpyHostToDevice);
 
-    cudaMalloc(&d_flat_literals, input.flat_literals.size() * sizeof(int));
-    cudaMemcpy(d_flat_literals, input.flat_literals.data(), input.flat_literals.size() * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMalloc(&d_flat_lits, input.flat_lits.size() * sizeof(int));
+    cudaMemcpy(d_flat_lits, input.flat_lits.data(), input.flat_lits.size() * sizeof(int), cudaMemcpyHostToDevice);
 
     cudaMalloc(&d_flat_weights, input.flat_weights.size() * sizeof(int));
     cudaMemcpy(d_flat_weights, input.flat_weights.data(), input.flat_weights.size() * sizeof(int), cudaMemcpyHostToDevice);
@@ -149,36 +141,39 @@ bool run_propagation(PropagatorInput& input) {
     int threadsPerBlock = 256; 
     int blocksPerGrid = input.num_rules;
     int sharedMemSize = threadsPerBlock * 2 * sizeof(int);
-    int h_changed, h_contradiction;
+    int h_changed = 1, h_contradiction = 0;
 
-    do {
-        h_changed = 0;
-        cudaMemcpy(d_changed, &h_changed, sizeof(int), cudaMemcpyHostToDevice);
+    while (h_changed == 1 && h_contradiction == 0) {
+        cudaMemset(d_changed, 0, sizeof(int));
 
-        propagation_kernel<<<blocksPerGrid, threadsPerBlock, sharedMemSize>>>(
-            d_M, d_head, d_bound, d_rule_offsets, d_flat_literals, d_flat_weights,
+        kernel<<<blocksPerGrid, threadsPerBlock, sharedMemSize>>>(
+            d_M, d_head, d_bound, d_rule_offsets, d_flat_lits, d_flat_weights,
             input.num_rules, d_changed, d_contradiction
         );
         cudaDeviceSynchronize();
 
         cudaMemcpy(&h_changed, d_changed, sizeof(int), cudaMemcpyDeviceToHost);
         cudaMemcpy(&h_contradiction, d_contradiction, sizeof(int), cudaMemcpyDeviceToHost);
-
-    } while (h_changed == 1 && h_contradiction == 0);
+    } 
 
     cudaMemcpy(input.M.data(), d_M, input.M.size() * sizeof(int), cudaMemcpyDeviceToHost);
 
-    cudaFree(d_M); cudaFree(d_head); cudaFree(d_bound); 
-    cudaFree(d_rule_offsets); cudaFree(d_flat_literals); 
-    cudaFree(d_flat_weights); cudaFree(d_changed); cudaFree(d_contradiction);
+    cudaFree(d_M);
+    cudaFree(d_head);
+    cudaFree(d_bound); 
+    cudaFree(d_rule_offsets);
+    cudaFree(d_flat_lits); 
+    cudaFree(d_flat_weights);
+    cudaFree(d_changed);
+    cudaFree(d_contradiction);
 
     return h_contradiction;
 }
 
 int main() {
-    PropagatorInput input = parse_dimacs_input();
-    bool contradiction = run_propagation(input);
-    print_structure(input);
+    DIMACSInput input = parse_dimacs_input();
+    bool contradiction = host(input);
+    print_structure(input,contradiction);
 
     return 0;
 }

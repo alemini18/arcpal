@@ -1,113 +1,94 @@
 #include <bits/stdc++.h>
 #include "../include/parser.hpp"
-#include "../include/utils.hpp"
 #include "../include/printer.hpp"
 
 using namespace std;
 
-
-
-bool infer_head(PropagatorInput& data, int head, int bound, int satisfied_count, int undefined_count, bool& global_contradiction) {
-    int head_val = get_literal_val(data.M, head);
-    
-    if (satisfied_count >= bound) {
-        if (head_val == UNDEF) {
-            assign_val_to_literal(data.M, head, TRUE);
-            return true;
-        } else if (head_val == FALSE) {
-            global_contradiction = true;
-        }
-    } else if (satisfied_count + undefined_count < bound) {
-        if (head_val == UNDEF) {
-            assign_val_to_literal(data.M, head, FALSE);
-            return true;
-        } else if (head_val == TRUE) {
-            global_contradiction = true;
-        }
-    }
-    return false;
-}
-
-bool infer_body(PropagatorInput& data, int head, int bound, int rule_start, int rule_end, int satisfied_count, int undefined_count, bool& global_contradiction) {
-    bool changed = false;
-    int head_val = get_literal_val(data.M, head);
-    
-    if (head_val == UNDEF) {
-        return false;
-    }
-
-    for (int j = rule_start; j < rule_end; j++) {
-        int lit = data.flat_literals[j];
-        int weight = data.flat_weights[j];
-        int lit_val = get_literal_val(data.M, lit);
-        
-        if (lit_val != UNDEF) continue;
-
-        if (head_val == TRUE && satisfied_count + undefined_count - weight < bound) {
-            assign_val_to_literal(data.M, lit, TRUE);
-            changed = true;
-        } else if (head_val == FALSE && satisfied_count + weight >= bound) {
-            assign_val_to_literal(data.M, lit, FALSE);
-            changed = true;
-        }
-    }
-    return changed;
-}
-
-bool propagate_rule(PropagatorInput& data, int rule_idx, bool& global_contradiction) {
+bool propagate_rule(DIMACSInput& data, int rule_idx, bool& contradiction) {
     int head = data.head[rule_idx];
     int bound = data.bound[rule_idx];
     int rule_start = data.rule_offsets[rule_idx];
     int rule_end = data.rule_offsets[rule_idx + 1];
 
-    int satisfied_count = 0;
-    int undefined_count = 0;
+    int S_sat = 0;
+    int S_undef = 0;
 
     for (int j = rule_start; j < rule_end; j++) {
-        int lit = data.flat_literals[j];
+        int lit = data.flat_lits[j];
         int weight = data.flat_weights[j];
-        int lit_val = get_literal_val(data.M, lit);
+        int atom = abs(lit);
+        int lit_val = (lit > 0) ? data.M[atom] : -data.M[atom];
 
         if (lit_val == TRUE) {
-            satisfied_count += weight;
+            S_sat += weight;
         } else if (lit_val == UNDEF) {
-            undefined_count += weight;
+            S_undef += weight;
         }
     }
 
     bool changed = false;
 
-    changed |= infer_head(data, head, bound, satisfied_count, undefined_count, global_contradiction);
+    int h_atom = abs(head);
+    int h_val = (head > 0) ? data.M[h_atom] : -data.M[h_atom];
     
-    if (global_contradiction) {
+    if (S_sat >= bound) {
+        if (h_val == UNDEF) {
+            data.M[h_atom] = (head > 0) ? TRUE : FALSE;
+            changed = true;
+        } else if (h_val == FALSE) {
+            contradiction = true;
+        }
+    } else if (S_sat + S_undef < bound) {
+        if (h_val == UNDEF) {
+            data.M[h_atom] = (head > 0) ? FALSE : TRUE;
+            changed = true;
+        } else if (h_val == TRUE) {
+            contradiction = true;
+        }
+    }
+    
+    if (contradiction) {
         return changed;
     }
 
-    changed |= infer_body(data, head, bound, rule_start, rule_end, satisfied_count, undefined_count, global_contradiction);
+    if (h_val != UNDEF) {
+        for (int j = rule_start; j < rule_end; j++) {
+            int lit = data.flat_lits[j];
+            int weight = data.flat_weights[j];
+            int atom = abs(lit);
+            int lit_val = (lit > 0) ? data.M[atom] : -data.M[atom];
+
+            if (lit_val != UNDEF) continue;
+
+            if (h_val == TRUE && S_sat + S_undef - weight < bound) {
+                data.M[atom] = (lit > 0) ? TRUE : FALSE;
+                changed = true;
+            } else if (h_val == FALSE && S_sat + weight >= bound) {
+                data.M[atom] = (lit > 0) ? FALSE : TRUE;
+                changed = true;
+            }
+        }
+    }
 
     return changed;
 }
 
 int main() {
-    PropagatorInput data = parse_dimacs_input();
-    bool global_changed = true;
-    bool global_contradiction = false;
+    DIMACSInput data = parse_dimacs_input();
+    bool changed = true;
+    bool contradiction = false;
 
-    while (global_changed && !global_contradiction) {
-
-        global_changed = false;
+    while (changed && !contradiction) {
+        changed = false;
 
         for (int i = 0; i < data.num_rules; i++) {
-            bool changed = propagate_rule(data, i, global_contradiction);
-            if (changed) {
-                global_changed = true;
-            }
-            if (global_contradiction) {
+            changed |= propagate_rule(data, i, contradiction);
+            if (contradiction) {
                 break;
             }
         }
     }
 
-    print_structure(data, global_contradiction);
+    print_structure(data, contradiction);
     return 0;
 }

@@ -51,10 +51,10 @@ __global__ void propagation_kernel(
     // 2. PARTIZIONAMENTO DELLA MEMORIA CONDIVISA DINAMICA
     extern __shared__ int shared_mem[];
     int* M_local             = shared_mem;
-    int* lits_local          = &shared_mem[num_atoms];
-    int* weights_local       = &shared_mem[num_atoms + num_lits_block];
-    int* local_changed       = &shared_mem[num_atoms + num_lits_block * 2];
-    int* local_contradiction = &shared_mem[num_atoms + num_lits_block * 2 + 1];
+    int* lits_local          = &shared_mem[num_atoms + 1];
+    int* weights_local       = &shared_mem[num_atoms + 1 + num_lits_block];
+    int* local_changed       = &shared_mem[num_atoms + 1 + num_lits_block * 2];
+    int* local_contradiction = &shared_mem[num_atoms + 1 + num_lits_block * 2 + 1];
 
     int rule_id = first_rule_in_block + tile.meta_group_rank();
     bool valid_rule = (rule_id < num_rules);
@@ -83,7 +83,7 @@ __global__ void propagation_kernel(
 
         // --- FASE 1: CARICAMENTO COOPERATIVO ---
         // A. Caricamento Atomi
-        for (int i = block.thread_rank(); i < num_atoms; i += block.size()) {
+        for (int i = block.thread_rank(); i < num_atoms + 1; i += block.size()) {
             M_local[i] = M[i];
         }
         
@@ -133,9 +133,7 @@ __global__ void propagation_kernel(
                 for (int offset = tile.size() / 2; offset > 0; offset /= 2) {
                     partial_S_sat += tile.shfl_down(partial_S_sat, offset);
                     partial_S_undef += tile.shfl_down(partial_S_undef, offset);
-                    tile.sync();
                 }
-                tile.sync();
                 int S_sat = tile.shfl(partial_S_sat, 0);
                 int S_undef = tile.shfl(partial_S_undef, 0);
                 int S_max = S_sat + S_undef;
@@ -188,7 +186,7 @@ __global__ void propagation_kernel(
         }
 
         // --- FASE 3: MERGE IN MEMORIA GLOBALE ---
-        for (int i = block.thread_rank(); i < num_atoms; i += block.size()) {
+        for (int i = block.thread_rank(); i < num_atoms + 1; i += block.size()) {
             if (M_local[i] != UNDEF) {
                 atomicDeduce(M, i, M_local[i], global_contradiction, global_changed);
             }
@@ -295,7 +293,7 @@ int main() {
     try {
         PropagatorInput input = parse_dimacs_input();
         bool contradiction = run_propagation(input);
-        print_structure(input);
+        print_structure(input,contradiction);
     } catch (const std::exception& e) {
         std::cerr << "\nEccezione: " << e.what() << std::endl;
         return 1;

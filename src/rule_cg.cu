@@ -133,8 +133,9 @@ __global__ void propagation_kernel(
                 for (int offset = tile.size() / 2; offset > 0; offset /= 2) {
                     partial_S_sat += tile.shfl_down(partial_S_sat, offset);
                     partial_S_undef += tile.shfl_down(partial_S_undef, offset);
+                    tile.sync();
                 }
-
+                tile.sync();
                 int S_sat = tile.shfl(partial_S_sat, 0);
                 int S_undef = tile.shfl(partial_S_undef, 0);
                 int S_max = S_sat + S_undef;

@@ -2,7 +2,7 @@ CXX := g++
 CXXFLAGS := -std=c++17 -O2
 TARGET := serial_naive
 
-SRCS_BASE := src/parser.cpp src/utils.cpp src/pretty_printer.cpp src/printer.cpp
+SRCS_BASE := src/parser.cpp src/printer.cpp
 SRCS_NAIVE := benchmarks/serial_naive.cpp $(SRCS_BASE)
 OBJS_BASE := $(SRCS_BASE:.cpp=.o)
 OBJS_NAIVE := $(SRCS_NAIVE:.cpp=.o)

@@ -154,7 +154,7 @@ bool host(DIMACSInput& input) {
     int tiles_per_block = THREADS_PER_BLOCK / TILE_SIZE; 
     int blocks_per_grid = (input.num_rules + tiles_per_block - 1) / tiles_per_block;
 
-    void* kernelArgs[] = {
+    void* kernel_args[] = {
     (void*)&d_M,
     (void*)&d_head,
     (void*)&d_bound,
@@ -169,7 +169,7 @@ bool host(DIMACSInput& input) {
     cudaLaunchCooperativeKernel(
         kernel<TILE_SIZE>,
         dim3(blocks_per_grid), dim3(THREADS_PER_BLOCK),
-        kernelArgs,
+        kernel_args,
         0, 0
     );
 

@@ -96,12 +96,12 @@ __global__ void kernel(
                 } else if (S_max < B) { 
                     atomicAssign(M, h_atom, h_not_val, contradiction, changed);
                 }
-                h_val_shared = M[h_atom];
+                *h_val_shared = M[h_atom];
             }
             __syncthreads();
 
             // Head -> Body
-            h_val = h_val_shared;
+            h_val = *h_val_shared;
             
             if (h_val != UNDEF) {
                 bool h_sat = ((h_lit > 0) && h_val == TRUE) || ((h_lit < 0) && h_val == FALSE);
@@ -168,7 +168,7 @@ int host(DIMACSInput& input) {
     const int THREADS_PER_BLOCK = 256; 
     int blocks_per_grid = input.num_rules;  
 
-    void* kernelArgs[] = {
+    void* kernel_args[] = {
         (void*)&d_M,
         (void*)&d_head,
         (void*)&d_bound,
@@ -183,7 +183,7 @@ int host(DIMACSInput& input) {
     cudaLaunchCooperativeKernel(
         kernel,
         dim3(blocks_per_grid), dim3(THREADS_PER_BLOCK),
-        kernelArgs,
+        kernel_args,
         0, 0
     );
 

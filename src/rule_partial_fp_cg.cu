@@ -216,7 +216,7 @@ bool host(DIMACSInput& input) {
     
     int max_shared_mem = input.M.size() + max_lits_per_block + max_lits_per_block + 2;
 
-    void* kernelArgs[] = {
+    void* kernel_args[] = {
         (void*)&d_M,
         (void*)&d_head,
         (void*)&d_bound,
@@ -232,7 +232,7 @@ bool host(DIMACSInput& input) {
     cudaLaunchCooperativeKernel(
         (const void*)kernel<TILE_SIZE>,
         dim3(blocks_per_grid), dim3(THREADS_PER_BLOCK),
-        kernelArgs,
+        kernel_args,
         max_shared_mem * sizeof(int),
         0
     );

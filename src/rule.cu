@@ -28,7 +28,7 @@ __global__ void kernel(
     extern __shared__ int shared_mem[];
     int* S_sat_shared = shared_mem;                      
     int* S_undef_shared = &shared_mem[blockDim.x]; 
-    int* h_val_shared = &share_mem[blockIdx.x * 2];      
+    int* h_val_shared = &shared_mem[blockDim.x * 2];      
 
     int partial_S_sat = 0;
     int partial_S_undef = 0;
@@ -75,12 +75,12 @@ __global__ void kernel(
         } else if (S_max < B) { 
             atomicAssign(M, h_atom, h_not_val, contradiction, changed);
         }
-        h_val_shared = M[h_atom];
+        *h_val_shared = M[h_atom];
     }
     __syncthreads();
 
     // Head -> Body
-    h_val = h_val_shared;
+    h_val = *h_val_shared;
 
     if (h_val != UNDEF) {
 

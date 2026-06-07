@@ -20,7 +20,7 @@ printed = False
 
 for i in atoms:
     val = int(i)
-    if val > 0 and val < N * N + 1:
+    if val > 0 and val < N * N * N + 1:
         out.write(str(val - (idx // N) * N))
         printed = True
     if idx % N == N - 1:

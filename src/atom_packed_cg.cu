@@ -80,10 +80,14 @@ __global__ void kernel(
     cg::thread_block block = cg::this_thread_block();
     cg::thread_block_tile<TILE_SIZE> tile = cg::tiled_partition<TILE_SIZE>(block);
 
-    int rule_id = (blockIdx.x * tile.meta_group_size()) + tile.meta_group_rank();
+    int total_tiles = grid.size() / TILE_SIZE;
 
-        if(rule_id < num_rules && !*contradiction && updated_rules[rule_id] != 0){
-            tile.sync();
+    for(int rule_id = (blockIdx.x * tile.meta_group_size()) + tile.meta_group_rank();
+        rule_id < num_rules; rule_id += total_tiles){
+
+        if(updated_rules[rule_id] == 0)continue;
+        tile.sync();
+
         if (tile.thread_rank() == 0) {
             updated_rules[rule_id] = 0;
         }
@@ -106,10 +110,11 @@ __global__ void kernel(
             } else if (S_max < B) { 
                 atomicAssignAndQueue(M, h_atom, h_not_val, contradiction, queue_out, num_out);
             }
+            h_val = M[h_atom];
         }
     
         tile.sync();
-        h_val = M[h_atom];
+        h_val = tile.shfl(h_val, 0);
         
         if (h_val != UNDEF) {
             bool h_sat = ((h_lit > 0) && h_val == TRUE) || ((h_lit < 0) && h_val == FALSE);
@@ -145,9 +150,7 @@ __global__ void kernel(
         int* queue_in  = (*swap_flag == 1) ? queue_0 : queue_1;
         queue_out      = (*swap_flag == 1) ? queue_1 : queue_0;
 
-  
-        int idx = grid.thread_rank();
-        if (idx < *num_in){
+        for(int idx = grid.thread_rank(); idx < *num_in; idx += grid.size()){
             int atom = queue_in[idx];
             int m_val = M[atom]; 
 
@@ -177,11 +180,16 @@ __global__ void kernel(
             }
         
         }
+
         grid.sync();
         if (*contradiction) break;
         
-        if (updated_rules[rule_id] != 0){
+        for(int rule_id = (blockIdx.x * tile.meta_group_size()) + tile.meta_group_rank();
+        rule_id < num_rules; rule_id += total_tiles){
+
+            if(updated_rules[rule_id] == 0)continue;
             tile.sync();
+
             if (tile.thread_rank() == 0) {
                 updated_rules[rule_id] = 0;
             }
@@ -205,10 +213,11 @@ __global__ void kernel(
                 } else if (S_max < B) { 
                     atomicAssignAndQueue(M, h_atom, h_not_val, contradiction, queue_out, num_out);
                 }
+                h_val = M[h_atom];
             }
             tile.sync();
 
-            h_val = M[h_atom];
+            h_val = tile.shfl(h_val, 0);
             
             if (h_val != UNDEF) {
                 bool h_sat = ((h_lit > 0) && h_val == TRUE) || ((h_lit < 0) && h_val == FALSE);

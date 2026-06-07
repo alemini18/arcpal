@@ -1,5 +1,6 @@
 
 #include <vector>
+#include<iostream>
 #include <cuda_runtime.h>
 #include <cooperative_groups.h>
 
@@ -88,14 +89,16 @@ __global__ void kernel(
     cg::grid_group grid = cg::this_grid();
     
     int* queue_out = queue_0;
-    int rule_id = blockIdx.x;
+    __shared__ int h_val_shared;
     
     if (*contradiction) return;
 
     // First deduce ---------------------------------------
 
-    if (rule_id < num_rules &&updated_rules[rule_id] != 0){
-
+    for(int rule_id = blockIdx.x; rule_id < num_rules; rule_id += gridDim.x){
+        
+        if(updated_rules[rule_id] == 0) continue;
+        __syncthreads();
         if (threadIdx.x == 0) {
             updated_rules[rule_id] = 0;
         }
@@ -162,9 +165,7 @@ __global__ void kernel(
 
         // Update rules ----------------------------------------------------
 
-        int idx = grid.thread_rank();
-
-        if (idx < *num_in){
+        for(int idx = grid.thread_rank(); idx < *num_in; idx += grid.size()){
 
             int atom = queue_in[idx];
             int m_val = M[atom];
@@ -201,8 +202,11 @@ __global__ void kernel(
 
         // Deduce --------------------------------------------------------------
 
-        if (rule_id < num_rules && updated_rules[rule_id] != 0){
+        for(int rule_id = blockIdx.x; rule_id < num_rules; rule_id += gridDim.x){
+
+            if(updated_rules[rule_id] == 0) continue;
             __syncthreads();
+
             if (threadIdx.x == 0) {
                 updated_rules[rule_id] = 0;
             }
@@ -226,10 +230,11 @@ __global__ void kernel(
                 } else if (S_max < B) { 
                     atomicAssignAndQueue(M, h_atom, h_not_val, contradiction, queue_out, num_out);
                 }
+                h_val_shared = M[h_atom];
             }
             __syncthreads();
 
-            h_val = M[h_atom];
+            h_val = h_val_shared;
             
             if (h_val != UNDEF) {
                 bool h_sat = ((h_lit > 0) && h_val == TRUE) || ((h_lit < 0) && h_val == FALSE);
@@ -336,9 +341,20 @@ int host(DIMACSInput& input, ReverseTables& revt) {
 
     const int THREADS_PER_BLOCK = 256;
     
-    int blocks_per_grid( (input.num_rules + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK);
+    int num_blocks_per_sm = 0;
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(&num_blocks_per_sm, (const void*)kernel, THREADS_PER_BLOCK, 0);
+    int device_id = 0;
+    cudaGetDevice(&device_id);
+    int num_SMs;
+    cudaDeviceGetAttribute(&num_SMs, cudaDevAttrMultiProcessorCount, device_id);
+    
+    int blocks_per_grid = num_SMs * num_blocks_per_sm;
+    if (blocks_per_grid > input.num_rules) {
+        blocks_per_grid = input.num_rules;
+    }
+    if (blocks_per_grid == 0) blocks_per_grid = 1;
 
-    init_sums_kernel<<<blocks_per_grid, THREADS_PER_BLOCK>>>(
+    init_sums_kernel<<<input.num_rules, THREADS_PER_BLOCK, THREADS_PER_BLOCK * 2 * sizeof(int)>>>(
         d_M, d_rule_offsets, d_flat_lits, d_flat_weights, 
         d_S_sat, d_S_undef, d_updated_rules, input.num_rules
     );
@@ -369,12 +385,16 @@ int host(DIMACSInput& input, ReverseTables& revt) {
         &d_swap_flag
     };
 
-    cudaLaunchCooperativeKernel(
-        (void*)kernel,
-        blocks_per_grid,
-        THREADS_PER_BLOCK,
-        kernel_args
+    cudaError_t launch_err = cudaLaunchCooperativeKernel(
+        kernel,
+        dim3(blocks_per_grid), dim3(THREADS_PER_BLOCK),
+        kernel_args,
+        0, 0
     );
+
+    if (launch_err != cudaSuccess) {
+        cerr<<"Kernel Launch Error: "<<cudaGetErrorString(launch_err)<<endl;
+    }
     cudaDeviceSynchronize();
 
     int h_contradiction = 0;

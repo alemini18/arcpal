@@ -127,6 +127,7 @@ __global__ void deduce_kernel(
     if (rule_id >= num_rules || *contradiction) return;
 
     if (updated_rules[rule_id] == 0) return;
+    __syncthreads();
 
     if (threadIdx.x == 0) {
         updated_rules[rule_id] = 0;

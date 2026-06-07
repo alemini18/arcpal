@@ -202,7 +202,7 @@ __global__ void kernel(
         // Deduce --------------------------------------------------------------
 
         if (rule_id < num_rules && updated_rules[rule_id] != 0){
-
+            __syncthreads();
             if (threadIdx.x == 0) {
                 updated_rules[rule_id] = 0;
             }

@@ -1,3 +1,4 @@
+#include <iostream>
 #include <cuda_runtime.h>
 #include <cooperative_groups.h>
 
@@ -5,6 +6,7 @@
 #include "../include/printer.hpp" 
 
 namespace cg = cooperative_groups;
+using namespace std;
 
 __device__ void atomicAssign(int* M, int atom_id, int val, int* contradiction, int* changed) {
     int old_val = atomicCAS(&M[atom_id], UNDEF, val);
@@ -27,9 +29,9 @@ __global__ void kernel(
     cg::thread_block block = cg::this_thread_block();
     cg::thread_block_tile<TILE_SIZE> tile = cg::tiled_partition<TILE_SIZE>(block);
 
-    int tilesPerBlock = block.size() / TILE_SIZE; 
-    int first_rule = blockIdx.x * tilesPerBlock;
-    int last_rule = min(first_rule + tilesPerBlock, num_rules);
+    int tiles_per_block = block.size() / TILE_SIZE; 
+    int first_rule = blockIdx.x * tiles_per_block;
+    int last_rule = min(first_rule + tiles_per_block, num_rules);
     
     int start_lit = 0;
     int end_lit = 0;
@@ -72,6 +74,7 @@ __global__ void kernel(
         lits_local[i] = flat_lits[i];
         weights_local[i] = flat_weights[i];
     }
+    grid.sync();
 
     bool flag_global = true;
     while(flag_global) {
@@ -132,12 +135,13 @@ __global__ void kernel(
                     } else if (S_max < B) { 
                         atomicAssign(M_local, h_atom, h_not_val, local_contradiction, local_changed);
                     }
+                    h_val = M_local[h_atom];
                 }
                 
                 tile.sync();
 
                 // Head -> Body
-                h_val = M_local[h_atom];
+                h_val = tile.shfl(h_val,0);
                 if (h_val != UNDEF) {
                     bool h_sat = ((h_lit > 0) && h_val == TRUE) || ((h_lit < 0) && h_val == FALSE);
 
@@ -167,6 +171,8 @@ __global__ void kernel(
             block.sync(); 
             if (*local_changed == 0 || *local_contradiction == 1) flag_local = false;
         }
+
+        if(block.thread_rank() == 0 && *local_contradiction) *contradiction = 1;
 
         for (int i = block.thread_rank(); i < num_atoms + 1; i += block.size()) {
             if (M_local[i] != UNDEF) {
@@ -229,13 +235,17 @@ bool host(DIMACSInput& input) {
         (void*)&d_contradiction
     };
 
-    cudaLaunchCooperativeKernel(
+    cudaError_t launch_err =cudaLaunchCooperativeKernel(
         (const void*)kernel<TILE_SIZE>,
         dim3(blocks_per_grid), dim3(THREADS_PER_BLOCK),
         kernel_args,
         max_shared_mem * sizeof(int),
         0
     );
+
+    if (launch_err != cudaSuccess) {
+        cerr<<"Kernel Launch Error: "<< cudaGetErrorString(launch_err)<<endl;
+    }
 
     cudaDeviceSynchronize();
 

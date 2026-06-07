@@ -137,6 +137,7 @@ __global__ void kernel(
         if (*changed == 0 || *contradiction == 1) {
             flag = false;
         }
+        grid.sync();
     }
 }
 

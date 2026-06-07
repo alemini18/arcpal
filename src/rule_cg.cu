@@ -59,6 +59,46 @@ __device__ void calc_sums(
     }
 }
 
+__device__ void deduce_head(
+    int* M, int h_atom, int h_val, int B,
+    int* S_sat, int* S_undef, int* h_val_shared,
+    int* changed, int* contradiction
+){
+    int S_max = S_sat + S_undef;
+    if (S_sat >= B) { 
+        atomicAssign(M, h_atom, h_val, contradiction, changed);
+    } else if (S_max < B) { 
+        atomicAssign(M, h_atom, h_not_val, contradiction, changed);
+    }
+}
+
+__device__ void deduce_body(
+    int* M, int B, bool h_sat, int* changed, int* contradiction,
+    const int* flat_lits, const int* flat_weights, int start_idx, int end_idx,
+    int S_max, int S_sat
+){
+    for (int i = start_idx + threadIdx.x; i < end_idx; i += blockDim.x) {
+            int lit = flat_lits[i];
+            int atom = abs(lit);
+            int weight = flat_weights[i];
+            
+            int lit_val = (lit > 0) ? TRUE : FALSE;
+            int lit_not_val = (lit > 0) ? FALSE : TRUE;
+
+            if (M[atom] == UNDEF) {
+                if (h_sat) { 
+                    if (S_max - weight < B) { 
+                        atomicAssign(M, atom, lit_val, contradiction, changed);
+                    }
+                } else {
+                    if (S_sat + weight >= B) { 
+                        atomicAssign(M, atom, lit_not_val, contradiction, changed);
+                    }
+                }
+            }
+        }
+}
+
 
 __device__ void update_rule(
     int rule_id, int* M,
@@ -88,43 +128,17 @@ __device__ void update_rule(
     int h_val = (h_lit > 0) ? TRUE : FALSE;
     int h_not_val = (h_lit > 0) ? FALSE : TRUE;
 
-    // Body -> Head
     if (threadIdx.x == 0) {
-        if (S_sat >= B) { 
-            atomicAssign(M, h_atom, h_val, contradiction, changed);
-        } else if (S_max < B) { 
-            atomicAssign(M, h_atom, h_not_val, contradiction, changed);
-        }
+        deduce_head(M, h_atom, h_val, B, S_sat, S_undef, h_val_shared, changed, contradiction);
         h_val_shared = M[h_atom];
     }
     __syncthreads();
 
-    // Head -> Body
     h_val = h_val_shared;
     
     if (h_val != UNDEF) {
         bool h_sat = ((h_lit > 0) && h_val == TRUE) || ((h_lit < 0) && h_val == FALSE);
-    
-        for (int i = start_idx + threadIdx.x; i < end_idx; i += blockDim.x) {
-            int lit = flat_lits[i];
-            int atom = abs(lit);
-            int weight = flat_weights[i];
-            
-            int lit_val = (lit > 0) ? TRUE : FALSE;
-            int lit_not_val = (lit > 0) ? FALSE : TRUE;
-
-            if (M[atom] == UNDEF) {
-                if (h_sat) { 
-                    if (S_max - weight < B) { 
-                        atomicAssign(M, atom, lit_val, contradiction, changed);
-                    }
-                } else {
-                    if (S_sat + weight >= B) { 
-                        atomicAssign(M, atom, lit_not_val, contradiction, changed);
-                    }
-                }
-            }
-        }   
+        deduce_body(M, B, h_sat, changed, contradiction, flat_lits, flat_weights, start_idx, end_idx, S_max, S_sat);
     }
 }
 

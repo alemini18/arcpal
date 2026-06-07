@@ -76,16 +76,14 @@ __global__ void init_sums_kernel(
 }
 
 
-__global__ void update_sums_kernel(
-    const int* modified_atoms, int num_modified,
+__device__ void update_sums_kernel(
+    const int idx, const int* modified_atoms, int num_modified,
     const int* M,
     const int* atom_body_offsets, const int* atom_body_rules, 
     const int* atom_body_lits, const int* atom_body_weights,
     const int* atom_head_offsets, const int* atom_head_rules,
     int* S_sat, int* S_undef, int* updated_rules
 ) {
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (idx >= num_modified) return;
 
     int atom = modified_atoms[idx];
     int m_val = M[atom]; //No UNDEF
@@ -116,16 +114,14 @@ __global__ void update_sums_kernel(
     }
 }
 
-__global__ void deduce_kernel(
-    int* M,
+__device__ void deduce_kernel(
+    int rule_id, int* M,
     const int* head, const int* bound, const int* rule_offsets,
     const int* flat_lits, const int* flat_weights,
     int* S_sat_global, int* S_undef_global, int* updated_rules,
-    int num_rules, int* contradiction, int* queue_out, int* num_out
+    int num_rules, int* contradiction, int* queue_out, int* num_out,
+    int* h_val_shared
 ) {
-    int rule_id = blockIdx.x;
-    __shared__ int h_val_shared;
-    
     if (rule_id >= num_rules || *contradiction) return;
 
     if (updated_rules[rule_id] == 0) return;
@@ -186,12 +182,90 @@ __global__ void deduce_kernel(
     }
 }
 
-bool host(DIMACSInput& input, ReverseTables& revt) {
+__global__ void kernel(
+    int* M,
+    const int* atom_body_offsets, const int* atom_body_rules, const int* atom_body_lits, const int* atom_body_weights,
+    const int* atom_head_offsets, const int* atom_head_rules,
+    const int* head, const int* bound, const int* rule_offsets,
+    const int* flat_lits, const int* flat_weights,
+    int* S_sat, int* S_undef, int* updated_rules,
+    int num_rules, int* contradiction,
+    int* queue_0, int* queue_1, int* num_out, int* num_in, int* swap_flag
+) {
+    cg::grid_group grid = cg::this_grid();
+    
+    int* queue_out = queue_0;
+    __shared__ int h_val_shared;
+    
+    if (*contradiction) return;
+
+
+    for(int rule_id = blockIdx.x; rule_id < num_rules; rule_id += gridDim.x){
+
+        deduce_kernel(rule_id, M,
+            atom_body_offsets, atom_body_rules, atom_body_lits, atom_body_weights,
+            atom_head_offsets, atom_head_rules,
+            head, bound, rule_offsets, flat_lits, flat_weights,
+            S_sat, S_undef,
+            updated_rules, num_rules, contradiction,
+            queue_0, queue_1,
+            num_out, num_in, swap_flag, h_val_shared);
+    }
+
+    grid.sync();
+
+    bool flag = true;
+
+    while (flag) {
+
+        int* queue_in = (*swap_flag == 1) ? queue_0 : queue_1;
+        queue_out = (*swap_flag == 1) ? queue_1 : queue_0;
+
+        for(int idx = grid.thread_rank(); idx < *num_in; idx += grid.size()){
+
+            update_sums_kernel(idx,
+                queue_in,
+                M,
+                atom_body_offsets, atom_body_rules, atom_body_lits, atom_body_weights,
+                atom_head_offsets, atom_head_rules,
+                S_sat, S_undef, updated_rules);
+        }
+
+        grid.sync();
+        if (*contradiction) break;
+
+        for(int rule_id = blockIdx.x; rule_id < num_rules; rule_id += gridDim.x){
+            
+            deduce_kernel(rule_id, M,
+            atom_body_offsets, atom_body_rules, atom_body_lits, atom_body_weights,
+            atom_head_offsets, atom_head_rules,
+            head, bound, rule_offsets, flat_lits, flat_weights,
+            S_sat, S_undef,
+            updated_rules, num_rules, contradiction,
+            queue_0, queue_1,
+            num_out, num_in, swap_flag, h_val_shared);
+        }
+
+        grid.sync();
+        if (*num_out == 0 || *contradiction != 0) {
+            flag = false;
+        } else {
+            if (grid.thread_rank() == 0) {
+                *swap_flag = 1 - *swap_flag;
+                *num_in = *num_out;
+                *num_out = 0;
+            }
+        }
+        grid.sync();
+    }
+}
+
+int host(DIMACSInput& input, ReverseTables& revt) {
     int *d_M, *d_head, *d_bound, *d_rule_offsets, *d_flat_lits, *d_flat_weights;
     int *d_atom_body_offsets, *d_atom_body_rules, *d_atom_body_lits, *d_atom_body_weights;
     int *d_atom_head_offsets, *d_atom_head_rules;
     int *d_S_sat, *d_S_undef, *d_updated_rules;
-    int *d_queue_in, *d_queue_out, *d_num_out, *d_contradiction;
+    int *d_queue_0, *d_queue_1, *d_num_out, *d_num_in, *d_swap_flag, *d_contradiction;
 
     cudaMalloc(&d_M, input.M.size() * sizeof(int));
     cudaMemcpy(d_M, input.M.data(), input.M.size() * sizeof(int), cudaMemcpyHostToDevice);
@@ -233,65 +307,80 @@ bool host(DIMACSInput& input, ReverseTables& revt) {
     cudaMalloc(&d_S_undef, input.num_rules * sizeof(int));
     cudaMalloc(&d_updated_rules, input.num_rules * sizeof(int));
 
-    cudaMalloc(&d_queue_in, input.num_atoms * sizeof(int));
-    cudaMalloc(&d_queue_out, input.num_atoms * sizeof(int));
+    cudaMalloc(&d_queue_0, input.num_atoms * sizeof(int));
+    cudaMalloc(&d_queue_1, input.num_atoms * sizeof(int));
     
     cudaMalloc(&d_num_out, sizeof(int));
+    cudaMalloc(&d_num_in, sizeof(int));
+    cudaMalloc(&d_swap_flag, sizeof(int));
     cudaMalloc(&d_contradiction, sizeof(int));
 
     cudaMemset(d_contradiction, 0, sizeof(int));
+    cudaMemset(d_num_out, 0, sizeof(int));
+    cudaMemset(d_num_in, 0, sizeof(int));
+    
+    cudaMemset(d_swap_flag, 0, sizeof(int));
 
-    
-    int h_contradiction = 0;
-    int h_num_out = 0;
-    
     const int THREADS_PER_BLOCK = 256;
+    
+    int num_blocks_per_sm = 0;
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(&num_blocks_per_sm, (const void*)kernel, THREADS_PER_BLOCK, 0);
+    int device_id = 0;
+    cudaGetDevice(&device_id);
+    int num_SMs;
+    cudaDeviceGetAttribute(&num_SMs, cudaDevAttrMultiProcessorCount, device_id);
+    
+    int blocks_per_grid = num_SMs * num_blocks_per_sm;
+    if (blocks_per_grid > input.num_rules) {
+        blocks_per_grid = input.num_rules;
+    }
+    if (blocks_per_grid == 0) blocks_per_grid = 1;
 
-    int shared_mem_size = THREADS_PER_BLOCK * 2 * sizeof(int);
-    init_sums_kernel<<<input.num_rules, THREADS_PER_BLOCK,shared_mem_size>>>(
+    init_sums_kernel<<<input.num_rules, THREADS_PER_BLOCK, THREADS_PER_BLOCK * 2 * sizeof(int)>>>(
         d_M, d_rule_offsets, d_flat_lits, d_flat_weights, 
         d_S_sat, d_S_undef, d_updated_rules, input.num_rules
     );
     cudaDeviceSynchronize();
 
-    cudaMemset(d_num_out, 0, sizeof(int));
-    deduce_kernel<<<input.num_rules, THREADS_PER_BLOCK>>>(
-        d_M, d_head, d_bound, d_rule_offsets, d_flat_lits, d_flat_weights,
-        d_S_sat, d_S_undef, d_updated_rules, input.num_rules, d_contradiction, d_queue_out, d_num_out
+    void* kernel_args[] = {
+        &d_M,
+        &d_atom_body_offsets,
+        &d_atom_body_rules,
+        &d_atom_body_lits,
+        &d_atom_body_weights,
+        &d_atom_head_offsets,
+        &d_atom_head_rules,
+        &d_head,
+        &d_bound,
+        &d_rule_offsets,
+        &d_flat_lits,
+        &d_flat_weights,
+        &d_S_sat,
+        &d_S_undef,
+        &d_updated_rules,
+        &input.num_rules,
+        &d_contradiction,
+        &d_queue_0,
+        &d_queue_1,
+        &d_num_out,
+        &d_num_in,
+        &d_swap_flag
+    };
+
+    cudaError_t launch_err = cudaLaunchCooperativeKernel(
+        kernel,
+        dim3(blocks_per_grid), dim3(THREADS_PER_BLOCK),
+        kernel_args,
+        0, 0
     );
+
+    if (launch_err != cudaSuccess) {
+        cerr<<"Kernel Launch Error: "<<cudaGetErrorString(launch_err)<<endl;
+    }
     cudaDeviceSynchronize();
 
-    cudaMemcpy(&h_num_out, d_num_out, sizeof(int), cudaMemcpyDeviceToHost);
+    int h_contradiction = 0;
     cudaMemcpy(&h_contradiction, d_contradiction, sizeof(int), cudaMemcpyDeviceToHost);
-
-    while (h_num_out > 0 && h_contradiction == 0) {
-        
-        int* temp = d_queue_in;
-        d_queue_in = d_queue_out;
-        d_queue_out = temp;
-        
-        int h_num_in = h_num_out;
-        cudaMemset(d_num_out, 0, sizeof(int));
-
-        int blocks = (h_num_in + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK;
-        update_sums_kernel<<<blocks, THREADS_PER_BLOCK>>>(
-            d_queue_in, h_num_in, d_M,
-            d_atom_body_offsets, d_atom_body_rules, d_atom_body_lits, d_atom_body_weights,
-            d_atom_head_offsets, d_atom_head_rules,
-            d_S_sat, d_S_undef, d_updated_rules
-        );
-        cudaDeviceSynchronize();
-
-        deduce_kernel<<<input.num_rules, THREADS_PER_BLOCK>>>(
-            d_M, d_head, d_bound, d_rule_offsets, d_flat_lits, d_flat_weights,
-            d_S_sat, d_S_undef, d_updated_rules, input.num_rules, d_contradiction, d_queue_out, d_num_out
-        );
-        cudaDeviceSynchronize();
-
-        cudaMemcpy(&h_num_out, d_num_out, sizeof(int), cudaMemcpyDeviceToHost);
-        cudaMemcpy(&h_contradiction, d_contradiction, sizeof(int), cudaMemcpyDeviceToHost);
-    }
-
     cudaMemcpy(input.M.data(), d_M, input.M.size() * sizeof(int), cudaMemcpyDeviceToHost);
 
     cudaFree(d_M);
@@ -309,10 +398,12 @@ bool host(DIMACSInput& input, ReverseTables& revt) {
     cudaFree(d_S_sat);
     cudaFree(d_S_undef);
     cudaFree(d_updated_rules);
-    cudaFree(d_queue_in);
-    cudaFree(d_queue_out);
+    cudaFree(d_queue_0);
+    cudaFree(d_queue_1);
     cudaFree(d_num_out);
+    cudaFree(d_num_in);
     cudaFree(d_contradiction);
+    cudaFree(d_swap_flag);
 
     return h_contradiction;
 }
@@ -321,7 +412,6 @@ int main() {
     DIMACSInput input = parse_dimacs_input();
     ReverseTables revt;
     build_reverse_tables(input, revt);
-    bool contradiction = host(input,revt);
-    print_structure(input);
-
+    int contradiction = host(input,revt);
+    print_structure(input,contradiction);
 }

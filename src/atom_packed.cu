@@ -146,13 +146,14 @@ __global__ void deduce_kernel(
         } else if (S_max < B) { 
             atomicAssignAndQueue(M, h_atom, h_not_val, contradiction, queue_out, num_out);
         }
+        h_val = M[h_atom];
     }
     tile.sync();
 
-    int h_val_cur = M[h_atom];
+    h_val = tile.shfl(h_val,0);
     
-    if (h_val_cur != UNDEF) {
-        bool h_sat = ((h_lit > 0) && h_val_cur == TRUE) || ((h_lit < 0) && h_val_cur == FALSE);
+    if (h_val != UNDEF) {
+        bool h_sat = ((h_lit > 0) && h_val == TRUE) || ((h_lit < 0) && h_val == FALSE);
 
         for (int i = start_idx + tile.thread_rank(); i < end_idx; i += tile.size()) {
             int lit = flat_lits[i];

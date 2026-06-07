@@ -12,17 +12,18 @@ data.close()
 
 atoms = atoms[1::]
 
-N = 9
+K = 3
+N = K * K
 
 idx = 0
 printed = False
 
 for i in atoms:
     val = int(i)
-    if val > 0 and val != 730:
-        out.write(str(val - (idx // 9) * N))
+    if val > 0 and val < N * N + 1:
+        out.write(str(val - (idx // N) * N))
         printed = True
-    if idx % 9 == 8:
+    if idx % N == N - 1:
         if not printed:
             out.write("0")
         printed = False

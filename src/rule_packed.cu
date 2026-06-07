@@ -73,12 +73,13 @@ __global__ void kernel(
         } else if (S_max < B) { 
             atomicAssign(M, h_atom, h_not_val, contradiction, changed);
         }
+        h_val = M[h_atom];
     }
 
     tile.sync();
 
     // Head -> Body
-    h_val = M[h_atom];
+    h_val = tile.shfl(h_val, 0);
 
     if (h_val != UNDEF) {
         bool h_sat = ((h_lit > 0) && h_val == TRUE) || ((h_lit < 0) && h_val == FALSE);

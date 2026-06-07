@@ -29,6 +29,7 @@ __global__ void kernel(
     __shared__ int S_undef_shared_arr[256];
     __shared__ int S_sat_shared;
     __shared__ int S_undef_shared;
+    __shared__ int h_val_shared;
     
     bool flag = true;
     
@@ -41,97 +42,92 @@ __global__ void kernel(
 
         if(rule_id < num_rules){
         
-                int start_idx = rule_offsets[rule_id];
-                int end_idx = rule_offsets[rule_id + 1];
-                int B = bound[rule_id];
+            int start_idx = rule_offsets[rule_id];
+            int end_idx = rule_offsets[rule_id + 1];
+            int B = bound[rule_id];
 
-                if (threadIdx.x == 0) {
-                    S_sat_shared = 0;
-                    S_undef_shared = 0;
+            int partial_S_sat = 0;
+            int partial_S_undef = 0;
+
+            for (int i = start_idx + threadIdx.x; i < end_idx; i += blockDim.x) {
+                int lit = flat_lits[i];
+                int atom = abs(lit);
+                int weight = flat_weights[i];
+
+                int m_val = M[atom];
+                    
+                if (m_val == UNDEF) {
+                    partial_S_undef += weight;
+                } else if (((lit > 0) && m_val == TRUE) || ((lit < 0) && m_val == FALSE)) {
+                    partial_S_sat += weight;
+                }
+            }
+
+            S_sat_shared_arr[threadIdx.x] = partial_S_sat;
+            S_undef_shared_arr[threadIdx.x] = partial_S_undef;
+            __syncthreads();
+
+            for(int offset = blockDim.x / 2; offset > 0; offset /= 2){
+                if(threadIdx.x < offset){
+                    S_sat_shared_arr[threadIdx.x] += S_sat_shared_arr[threadIdx.x + offset];
+                    S_undef_shared_arr[threadIdx.x] += S_undef_shared_arr[threadIdx.x + offset];
                 }
                 __syncthreads();
+            }
+            if(threadIdx.x == 0){
+                S_sat_shared = S_sat_shared_arr[0];
+                S_undef_shared = S_undef_shared_arr[0];
+            }
+            __syncthreads();
+            
+            int S_sat = S_sat_shared;
+            int S_undef = S_undef_shared;
+            int S_max = S_sat + S_undef;
 
-                int partial_S_sat = 0;
-                int partial_S_undef = 0;
+            int h_lit = head[rule_id];
+            int h_atom = abs(h_lit);
+            int h_val = (h_lit > 0) ? TRUE : FALSE;
+            int h_not_val = (h_lit > 0) ? FALSE : TRUE;
 
+            // Body -> Head
+            if (threadIdx.x == 0) {
+                if (S_sat >= B) { 
+                    atomicAssign(M, h_atom, h_val, contradiction, changed);
+                } else if (S_max < B) { 
+                    atomicAssign(M, h_atom, h_not_val, contradiction, changed);
+                }
+                h_val_shared = M[h_atom];
+            }
+            __syncthreads();
+
+            // Head -> Body
+            h_val = h_val_shared;
+            
+            if (h_val != UNDEF) {
+                bool h_sat = ((h_lit > 0) && h_val == TRUE) || ((h_lit < 0) && h_val == FALSE);
+            
                 for (int i = start_idx + threadIdx.x; i < end_idx; i += blockDim.x) {
                     int lit = flat_lits[i];
                     int atom = abs(lit);
                     int weight = flat_weights[i];
+                    
+                    int lit_val = (lit > 0) ? TRUE : FALSE;
+                    int lit_not_val = (lit > 0) ? FALSE : TRUE;
 
-                    int m_val = M[atom];
-                        
-                    if (m_val == UNDEF) {
-                        partial_S_undef += weight;
-                    } else if (((lit > 0) && m_val == TRUE) || ((lit < 0) && m_val == FALSE)) {
-                        partial_S_sat += weight;
-                    }
-                }
-
-                S_sat_shared_arr[threadIdx.x] = partial_S_sat;
-                S_undef_shared_arr[threadIdx.x] = partial_S_undef;
-                __syncthreads();
-
-                for(int offset = blockDim.x / 2; offset > 0; offset /= 2){
-                    if(threadIdx.x < offset){
-                        S_sat_shared_arr[threadIdx.x] += S_sat_shared_arr[threadIdx.x + offset];
-                        S_undef_shared_arr[threadIdx.x] += S_undef_shared_arr[threadIdx.x + offset];
-                    }
-                    __syncthreads();
-                }
-                if(threadIdx.x == 0){
-                    S_sat_shared = S_sat_shared_arr[0];
-                    S_undef_shared = S_undef_shared_arr[0];
-                }
-                __syncthreads();
-                
-                int S_sat = S_sat_shared;
-                int S_undef = S_undef_shared;
-                int S_max = S_sat + S_undef;
-
-                int h_lit = head[rule_id];
-                int h_atom = abs(h_lit);
-                int h_val = (h_lit > 0) ? TRUE : FALSE;
-                int h_not_val = (h_lit > 0) ? FALSE : TRUE;
-
-                // Body -> Head
-                if (threadIdx.x == 0) {
-                    if (S_sat >= B) { 
-                        atomicAssign(M, h_atom, h_val, contradiction, changed);
-                    } else if (S_max < B) { 
-                        atomicAssign(M, h_atom, h_not_val, contradiction, changed);
-                    }
-                }
-                __syncthreads();
-
-                // Head -> Body
-                h_val = M[h_atom];
-                
-                if (h_val != UNDEF) {
-                    bool h_sat = ((h_lit > 0) && h_val == TRUE) || ((h_lit < 0) && h_val == FALSE);
-                
-                    for (int i = start_idx + threadIdx.x; i < end_idx; i += blockDim.x) {
-                        int lit = flat_lits[i];
-                        int atom = abs(lit);
-                        int weight = flat_weights[i];
-                        
-                        int lit_val = (lit > 0) ? TRUE : FALSE;
-                        int lit_not_val = (lit > 0) ? FALSE : TRUE;
-
-                        if (M[atom] == UNDEF) {
-                            if (h_sat) { 
-                                if (S_max - weight < B) { 
-                                    atomicAssign(M, atom, lit_val, contradiction, changed);
-                                }
-                            } else {
-                                if (S_sat + weight >= B) { 
-                                    atomicAssign(M, atom, lit_not_val, contradiction, changed);
-                                }
+                    if (M[atom] == UNDEF) {
+                        if (h_sat) { 
+                            if (S_max - weight < B) { 
+                                atomicAssign(M, atom, lit_val, contradiction, changed);
+                            }
+                        } else {
+                            if (S_sat + weight >= B) { 
+                                atomicAssign(M, atom, lit_not_val, contradiction, changed);
                             }
                         }
-                    }   
-                }
+                    }
+                }   
             }
+        }
         grid.sync();
 
         if (*changed == 0 || *contradiction == 1) {

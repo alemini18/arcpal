@@ -29,10 +29,6 @@ __global__ void kernel(
 
     int rule_id = (blockIdx.x * tile.meta_group_size()) + tile.meta_group_rank();
 
-    int start_idx = rule_offsets[rule_id];
-    int end_idx = rule_offsets[rule_id + 1];
-    int B = bound[rule_id];
-
     bool flag = true;
     while(flag){
 
@@ -42,6 +38,10 @@ __global__ void kernel(
     grid.sync();
 
     if(rule_id < num_rules){
+
+        int start_idx = rule_offsets[rule_id];
+        int end_idx = rule_offsets[rule_id + 1];
+        int B = bound[rule_id];
 
         int partial_S_sat = 0;
         int partial_S_undef = 0;
@@ -81,12 +81,13 @@ __global__ void kernel(
             } else if (S_max < B) { 
                 atomicAssign(M, h_atom, h_not_val, contradiction, changed);
             }
+            h_val = M[h_atom];
         }
 
         tile.sync();
 
         // Head -> Body
-        h_val = M[h_atom];
+        h_val = tile.shfl(h_val,0);
 
         if (h_val != UNDEF) {
             bool h_sat = ((h_lit > 0) && h_val == TRUE) || ((h_lit < 0) && h_val == FALSE);

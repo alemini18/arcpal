@@ -27,11 +27,8 @@ __global__ void kernel(
 
     extern __shared__ int shared_mem[];
     int* S_sat_shared = shared_mem;                      
-    int* S_undef_shared = &shared_mem[blockDim.x];       
-
-    S_sat_shared[threadIdx.x] = 0;
-    S_undef_shared[threadIdx.x] = 0;
-    __syncthreads();
+    int* S_undef_shared = &shared_mem[blockDim.x]; 
+    int* h_val_shared = &share_mem[blockIdx.x * 2];      
 
     int partial_S_sat = 0;
     int partial_S_undef = 0;
@@ -78,11 +75,12 @@ __global__ void kernel(
         } else if (S_max < B) { 
             atomicAssign(M, h_atom, h_not_val, contradiction, changed);
         }
+        h_val_shared = M[h_atom];
     }
     __syncthreads();
 
     // Head -> Body
-    h_val = M[h_atom];
+    h_val = h_val_shared;
 
     if (h_val != UNDEF) {
 
@@ -138,15 +136,15 @@ bool host(DIMACSInput& input) {
     cudaMalloc(&d_contradiction, sizeof(int));
     cudaMemset(d_contradiction, 0, sizeof(int));
 
-    int threadsPerBlock = 256; 
-    int blocksPerGrid = input.num_rules;
-    int sharedMemSize = threadsPerBlock * 2 * sizeof(int);
+    const int THREADS_PER_BLOCK = 256; 
+    int blocks_per_grid = input.num_rules;
+    int shared_mem_size = (THREADS_PER_BLOCK * 2 + 1) * sizeof(int);
     int h_changed = 1, h_contradiction = 0;
 
     while (h_changed == 1 && h_contradiction == 0) {
         cudaMemset(d_changed, 0, sizeof(int));
 
-        kernel<<<blocksPerGrid, threadsPerBlock, sharedMemSize>>>(
+        kernel<<<blocks_per_grid, THREADS_PER_BLOCK, shared_mem_size>>>(
             d_M, d_head, d_bound, d_rule_offsets, d_flat_lits, d_flat_weights,
             input.num_rules, d_changed, d_contradiction
         );

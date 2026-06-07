@@ -71,10 +71,10 @@ __global__ void kernel(
     }
 
     for (int i = start_lit + block.thread_rank(); i < end_lit; i += block.size()) {
-        lits_local[i] = flat_lits[i];
-        weights_local[i] = flat_weights[i];
+        lits_local[i - start_lit] = flat_lits[i];
+        weights_local[i - start_lit] = flat_weights[i];
     }
-    grid.sync();
+    block.sync();
 
     bool flag_global = true;
     while(flag_global) {

@@ -62,6 +62,113 @@ __global__ void init_sums_kernel(
         updated_rules[rule_id] = 1;
     }
 }
+__device__ void update_sums_kernel(
+    int idx, const int* modified_atoms,
+    const int* M,
+    const int* atom_body_offsets, const int* atom_body_rules, const int* atom_body_lits, const int* atom_body_weights,
+    const int* atom_head_offsets, const int* atom_head_rules,
+    int* S_sat, int* S_undef, int* updated_rules
+) {
+    int atom = modified_atoms[idx];
+    int m_val = M[atom]; //No UNDEF
+
+    int body_start = atom_body_offsets[atom];
+    int body_end = atom_body_offsets[atom + 1];
+    
+    for (int i = body_start; i < body_end; i++) {
+        int rule_id = atom_body_rules[i];
+        int lit = atom_body_lits[i];
+        int weight = atom_body_weights[i];
+
+        atomicSub(&S_undef[rule_id], weight);
+        
+        if (((lit > 0) && (m_val == TRUE)) || ((lit < 0) && (m_val == FALSE))) {
+            atomicAdd(&S_sat[rule_id], weight);
+        }
+        
+        updated_rules[rule_id] = 1;
+    }
+
+    int head_start = atom_head_offsets[atom];
+    int head_end = atom_head_offsets[atom + 1];
+    
+    for (int i = head_start; i < head_end; i++) {
+        int rule_id = atom_head_rules[i];
+        updated_rules[rule_id] = 1;
+    }
+}
+
+template <int TILE_SIZE>
+__device__ void deduce_kernel(
+    int rule_id, int* M,
+    const int* head, const int* bound, const int* rule_offsets,
+    const int* flat_lits, const int* flat_weights,
+    int* S_sat_global, int* S_undef_global, int* updated_rules,
+     int* contradiction, int* queue_out, int* num_out
+) {
+
+    cg::thread_block block = cg::this_thread_block();
+    cg::thread_block_tile<TILE_SIZE> tile = cg::tiled_partition<TILE_SIZE>(block);
+
+    if (*contradiction) return;
+
+    if (updated_rules[rule_id] == 0) return;
+    tile.sync();
+
+    if (tile.thread_rank() == 0) {
+        updated_rules[rule_id] = 0;
+    }
+
+    int start_idx = rule_offsets[rule_id];
+    int end_idx = rule_offsets[rule_id + 1];
+    int B = bound[rule_id];
+
+    int S_sat = S_sat_global[rule_id];
+    int S_undef = S_undef_global[rule_id];
+    int S_max = S_sat + S_undef;
+
+    int h_lit = head[rule_id];
+    int h_atom = abs(h_lit);
+    int h_val = (h_lit > 0) ? TRUE : FALSE;
+    int h_not_val = (h_lit > 0) ? FALSE : TRUE;
+
+    if (tile.thread_rank() == 0) {
+        if (S_sat >= B) { 
+            atomicAssignAndQueue(M, h_atom, h_val, contradiction, queue_out, num_out);
+        } else if (S_max < B) { 
+            atomicAssignAndQueue(M, h_atom, h_not_val, contradiction, queue_out, num_out);
+        }
+        h_val = M[h_atom];
+    }
+    tile.sync();
+
+    h_val = tile.shfl(h_val,0);
+    
+    if (h_val != UNDEF) {
+        bool h_sat = ((h_lit > 0) && h_val == TRUE) || ((h_lit < 0) && h_val == FALSE);
+
+        for (int i = start_idx + tile.thread_rank(); i < end_idx; i += tile.size()) {
+            int lit = flat_lits[i];
+            int atom = abs(lit);
+            int weight = flat_weights[i];
+            
+            int lit_val = (lit > 0) ? TRUE : FALSE;
+            int lit_not_val = (lit > 0) ? FALSE : TRUE;
+
+            if (M[atom] == UNDEF) {
+                if (h_sat) { 
+                    if (S_max - weight < B) { 
+                        atomicAssignAndQueue(M, atom, lit_val, contradiction, queue_out, num_out);
+                    }
+                } else { 
+                    if (S_sat + weight >= B) { 
+                        atomicAssignAndQueue(M, atom, lit_not_val, contradiction, queue_out, num_out);
+                    }
+                }
+            }
+        }
+    }
+}
 
 template<int TILE_SIZE>
 __global__ void kernel(
@@ -77,174 +184,48 @@ __global__ void kernel(
     cg::grid_group grid = cg::this_grid();
     
     int* queue_out = queue_0;
-    cg::thread_block block = cg::this_thread_block();
-    cg::thread_block_tile<TILE_SIZE> tile = cg::tiled_partition<TILE_SIZE>(block);
-
-    int total_tiles = grid.size() / TILE_SIZE;
-
-    for(int rule_id = (blockIdx.x * tile.meta_group_size()) + tile.meta_group_rank();
-        rule_id < num_rules; rule_id += total_tiles){
-
-        if(updated_rules[rule_id] == 0)continue;
-        tile.sync();
-
-        if (tile.thread_rank() == 0) {
-            updated_rules[rule_id] = 0;
-        }
-        int start_idx = rule_offsets[rule_id];
-        int end_idx = rule_offsets[rule_id + 1];
-        int B = bound[rule_id];
-
-        int local_S_sat = S_sat[rule_id];
-        int local_S_undef = S_undef[rule_id];
-        int S_max = local_S_sat + local_S_undef;
-
-        int h_lit = head[rule_id];
-        int h_atom = abs(h_lit);
-        int h_val = (h_lit > 0) ? TRUE : FALSE;
-        int h_not_val = (h_lit > 0) ? FALSE : TRUE;
-
-        if (tile.thread_rank() == 0) {
-            if (local_S_sat >= B) { 
-                atomicAssignAndQueue(M, h_atom, h_val, contradiction, queue_out, num_out);
-            } else if (S_max < B) { 
-                atomicAssignAndQueue(M, h_atom, h_not_val, contradiction, queue_out, num_out);
-            }
-            h_val = M[h_atom];
-        }
     
-        tile.sync();
-        h_val = tile.shfl(h_val, 0);
-        
-        if (h_val != UNDEF) {
-            bool h_sat = ((h_lit > 0) && h_val == TRUE) || ((h_lit < 0) && h_val == FALSE);
+    if (*contradiction) return;
 
-            for (int i = start_idx + tile.thread_rank(); i < end_idx; i += tile.size()) {
-                int lit = flat_lits[i];
-                int atom = abs(lit);
-                int weight = flat_weights[i];
-                
-                int lit_val = (lit > 0) ? TRUE : FALSE;
-                int lit_not_val = (lit > 0) ? FALSE : TRUE;
 
-                if (M[atom] == UNDEF) {
-                    if (h_sat) { 
-                        if (S_max - weight < B) { 
-                            atomicAssignAndQueue(M, atom, lit_val, contradiction, queue_out, num_out);
-                        }
-                    } else { 
-                        if (local_S_sat + weight >= B) { 
-                            atomicAssignAndQueue(M, atom, lit_not_val, contradiction, queue_out, num_out);
-                        }
-                    }
-                }
-            }
-        }
-        }
+    for(int rule_id = blockIdx.x; rule_id < num_rules; rule_id += gridDim.x){
+
+        deduce_kernel<TILE_SIZE>(rule_id, M, head, bound, rule_offsets,
+            flat_lits, flat_weights, S_sat, S_undef,
+            updated_rules, contradiction,
+            queue_out, num_out);
+    }
+
     grid.sync();
 
     bool flag = true;
-    
+
     while (flag) {
 
-        int* queue_in  = (*swap_flag == 1) ? queue_0 : queue_1;
-        queue_out      = (*swap_flag == 1) ? queue_1 : queue_0;
+        int* queue_in = (*swap_flag == 1) ? queue_0 : queue_1;
+        queue_out = (*swap_flag == 1) ? queue_1 : queue_0;
 
         for(int idx = grid.thread_rank(); idx < *num_in; idx += grid.size()){
-            int atom = queue_in[idx];
-            int m_val = M[atom]; 
 
-            int body_start = atom_body_offsets[atom];
-            int body_end = atom_body_offsets[atom + 1];
-            
-            for (int i = body_start; i < body_end; i++) {
-                int rule_id = atom_body_rules[i];
-                int lit = atom_body_lits[i];
-                int weight = atom_body_weights[i];
-
-                atomicSub(&S_undef[rule_id], weight);
-                
-                if (((lit > 0) && (m_val == TRUE)) || ((lit < 0) && (m_val == FALSE))) {
-                    atomicAdd(&S_sat[rule_id], weight);
-                }
-                
-                updated_rules[rule_id] = 1;
-            }
-
-            int head_start = atom_head_offsets[atom];
-            int head_end = atom_head_offsets[atom + 1];
-            
-            for (int i = head_start; i < head_end; i++) {
-                int rule_id = atom_head_rules[i];
-                updated_rules[rule_id] = 1;
-            }
-        
+            update_sums_kernel(idx,
+                queue_in,
+                M,
+                atom_body_offsets, atom_body_rules, atom_body_lits, atom_body_weights,
+                atom_head_offsets, atom_head_rules,
+                S_sat, S_undef, updated_rules);
         }
 
         grid.sync();
         if (*contradiction) break;
-        
-        for(int rule_id = (blockIdx.x * tile.meta_group_size()) + tile.meta_group_rank();
-        rule_id < num_rules; rule_id += total_tiles){
 
-            if(updated_rules[rule_id] == 0)continue;
-            tile.sync();
-
-            if (tile.thread_rank() == 0) {
-                updated_rules[rule_id] = 0;
-            }
-
-            int start_idx = rule_offsets[rule_id];
-            int end_idx = rule_offsets[rule_id + 1];
-            int B = bound[rule_id];
-
-            int local_S_sat = S_sat[rule_id];
-            int local_S_undef = S_undef[rule_id];
-            int S_max = local_S_sat + local_S_undef;
-
-            int h_lit = head[rule_id];
-            int h_atom = abs(h_lit);
-            int h_val = (h_lit > 0) ? TRUE : FALSE;
-            int h_not_val = (h_lit > 0) ? FALSE : TRUE;
-
-            if (tile.thread_rank() == 0) {
-                if (local_S_sat >= B) { 
-                    atomicAssignAndQueue(M, h_atom, h_val, contradiction, queue_out, num_out);
-                } else if (S_max < B) { 
-                    atomicAssignAndQueue(M, h_atom, h_not_val, contradiction, queue_out, num_out);
-                }
-                h_val = M[h_atom];
-            }
-            tile.sync();
-
-            h_val = tile.shfl(h_val, 0);
+        for(int rule_id = blockIdx.x; rule_id < num_rules; rule_id += gridDim.x){
             
-            if (h_val != UNDEF) {
-                bool h_sat = ((h_lit > 0) && h_val == TRUE) || ((h_lit < 0) && h_val == FALSE);
-
-                for (int i = start_idx + tile.thread_rank(); i < end_idx; i += tile.size()) {
-                    int lit = flat_lits[i];
-                    int atom = abs(lit);
-                    int weight = flat_weights[i];
-                    
-                    int lit_val = (lit > 0) ? TRUE : FALSE;
-                    int lit_not_val = (lit > 0) ? FALSE : TRUE;
-
-                    if (M[atom] == UNDEF) {
-                        if (h_sat) { 
-                            if (S_max - weight < B) { 
-                                atomicAssignAndQueue(M, atom, lit_val, contradiction, queue_out, num_out);
-                            }
-                        } else { 
-                            if (local_S_sat + weight >= B) { 
-                                atomicAssignAndQueue(M, atom, lit_not_val, contradiction, queue_out, num_out);
-                            }
-                        }
-                    }
-                }
-            }
+            deduce_kernel<TILE_SIZE>(rule_id, M, head, bound, rule_offsets,
+            flat_lits, flat_weights, S_sat, S_undef,
+            updated_rules, contradiction,
+            queue_out, num_out);
         }
-    
+
         grid.sync();
         if (*num_out == 0 || *contradiction != 0) {
             flag = false;

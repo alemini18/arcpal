@@ -1,9 +1,11 @@
+#include <iostream>
 #include <cuda_runtime.h>
 #include <cooperative_groups.h> 
 #include "../include/parser.hpp" 
 #include "../include/printer.hpp"
 
 namespace cg = cooperative_groups; 
+using namespace std;
 
 
 __device__ void atomicAssign(int* M, int atom, int val, int* contradiction, int* changed) {
@@ -94,12 +96,12 @@ __global__ void kernel(
                 } else if (S_max < B) { 
                     atomicAssign(M, h_atom, h_not_val, contradiction, changed);
                 }
-                *h_val_shared = M[h_atom];
+                h_val_shared = M[h_atom];
             }
             __syncthreads();
 
             // Head -> Body
-            h_val = *h_val_shared;
+            h_val = h_val_shared;
             
             if (h_val != UNDEF) {
                 bool h_sat = ((h_lit > 0) && h_val == TRUE) || ((h_lit < 0) && h_val == FALSE);
@@ -193,7 +195,7 @@ int host(DIMACSInput& input) {
     cudaError_t launch_err = cudaLaunchCooperativeKernel(
         kernel,
         dim3(blocks_per_grid), dim3(THREADS_PER_BLOCK),
-        kernelArgs,
+        kernel_args,
         0, 0
     );
     if (launch_err != cudaSuccess) {

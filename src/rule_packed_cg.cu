@@ -1,3 +1,4 @@
+#include <iostream>
 #include <cuda_runtime.h>
 #include <cooperative_groups.h>
 
@@ -5,6 +6,7 @@
 #include "../include/printer.hpp" 
 
 namespace cg = cooperative_groups;
+using namespace std;
 
 __device__ void atomicAssign(int* M, int atom_id, int val, int* contradiction, int* changed) {
     int old_val = atomicCAS(&M[atom_id], UNDEF, val);

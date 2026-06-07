@@ -61,7 +61,7 @@ __device__ void calc_sums(
 
 __device__ void deduce_head(
     int* M, int h_atom, int h_val, int h_not_val, int B,
-    int S_sat, int S_max, int* h_val_shared,
+    int S_sat, int S_max,
     int* changed, int* contradiction
 ){
     if (S_sat >= B) { 

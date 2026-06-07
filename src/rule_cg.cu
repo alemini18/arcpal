@@ -54,17 +54,16 @@ __device__ void calc_sums(
         __syncthreads();
     }
     if(threadIdx.x == 0){
-        S_sat_shared = S_sat_shared_arr[0];
-        S_undef_shared = S_undef_shared_arr[0];
+        *S_sat_shared = S_sat_shared_arr[0];
+        *S_undef_shared = S_undef_shared_arr[0];
     }
 }
 
 __device__ void deduce_head(
-    int* M, int h_atom, int h_val, int B,
-    int* S_sat, int* S_undef, int* h_val_shared,
+    int* M, int h_atom, int h_val, int h_not_val, int B,
+    int S_sat, int S_max, int* h_val_shared,
     int* changed, int* contradiction
 ){
-    int S_max = S_sat + S_undef;
     if (S_sat >= B) { 
         atomicAssign(M, h_atom, h_val, contradiction, changed);
     } else if (S_max < B) { 
@@ -119,8 +118,8 @@ __device__ void update_rule(
     );
     __syncthreads();
     
-    int S_sat = S_sat_shared;
-    int S_undef = S_undef_shared;
+    int S_sat = *S_sat_shared;
+    int S_undef = *S_undef_shared;
     int S_max = S_sat + S_undef;
 
     int h_lit = head[rule_id];
@@ -129,12 +128,12 @@ __device__ void update_rule(
     int h_not_val = (h_lit > 0) ? FALSE : TRUE;
 
     if (threadIdx.x == 0) {
-        deduce_head(M, h_atom, h_val, B, S_sat, S_undef, h_val_shared, changed, contradiction);
-        h_val_shared = M[h_atom];
+        deduce_head(M, h_atom, h_val, h_not_val, B, S_sat, S_max, changed, contradiction);
+        *h_val_shared = M[h_atom];
     }
     __syncthreads();
 
-    h_val = h_val_shared;
+    h_val = *h_val_shared;
     
     if (h_val != UNDEF) {
         bool h_sat = ((h_lit > 0) && h_val == TRUE) || ((h_lit < 0) && h_val == FALSE);

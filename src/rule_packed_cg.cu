@@ -148,10 +148,10 @@ bool host(DIMACSInput& input) {
     cudaMemset(d_contradiction, 0, sizeof(int));
 
     const int TILE_SIZE = 16; 
-    int threadsPerBlock = 256; 
+    const int THREADS_PER_BLOCK = 256; 
     
-    int tilesPerBlock = threadsPerBlock / TILE_SIZE; 
-    int blocksPerGrid = (input.num_rules + tilesPerBlock - 1) / tilesPerBlock;
+    int tiles_per_block = THREADS_PER_BLOCK / TILE_SIZE; 
+    int blocks_per_grid = (input.num_rules + tiles_per_block - 1) / tiles_per_block;
 
     void* kernelArgs[] = {
     (void*)&d_M,
@@ -167,7 +167,7 @@ bool host(DIMACSInput& input) {
 
     cudaLaunchCooperativeKernel(
         propagation_kernel<TILE_SIZE>,
-        dim3(blocksPerGrid), dim3(threadsPerBlock),
+        dim3(blocks_per_grid), dim3(THREADS_PER_BLOCK),
         kernelArgs,
         0, 0
     );

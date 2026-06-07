@@ -32,14 +32,14 @@ __global__ void kernel(
     int last_rule = min(first_rule + tilesPerBlock, num_rules);
     
     int start_lit = 0;
-    int end_lit;
-    int num_lits = 0;
+    int end_lit = 0;
     
     if (first_rule < num_rules) {
         start_lit = rule_offsets[first_rule];
         end_lit = rule_offsets[last_rule];
-        num_lits = end_lit - start_lit;
     }
+
+    int num_lits_block = end_lit - start_lit;
 
     extern __shared__ int shared_mem[];
     int* M_local = shared_mem;
@@ -50,8 +50,13 @@ __global__ void kernel(
 
     int rule_id = first_rule + tile.meta_group_rank();
     
-    int start_idx = 0, end_idx = 0, num_lits = 0, B = 0;
-    int h_lit = 0, h_atom = 0, h_val = 0, h_not_val = 0;
+    int start_idx = 0;
+    int end_idx = 0;
+    int B = 0;
+    int h_lit = 0;
+    int h_atom = 0;
+    int h_val = 0;
+    int h_not_val = 0;
 
     if (rule_id < num_rules) {
         start_idx = rule_offsets[rule_id];
@@ -63,9 +68,9 @@ __global__ void kernel(
         h_not_val = (h_lit > 0) ? FALSE : TRUE;
     }
 
-    for (int i = block.thread_rank(); i < num_lits; i += block.size()) {
-        lits_local[i] = flat_lits[start_lit + i];
-        weights_local[i] = flat_weights[start_lit + i];
+    for (int i = start_lit + block.thread_rank(); i < end_lit; i += block.size()) {
+        lits_local[i] = flat_lits[i];
+        weights_local[i] = flat_weights[i];
     }
 
     bool flag_global = true;
@@ -174,7 +179,7 @@ __global__ void kernel(
     }
 }
 
-bool kernel(DIMACSInput& input) {
+bool host(DIMACSInput& input) {
     int *d_M, *d_head, *d_bound, *d_rule_offsets, *d_flat_lits, *d_flat_weights;
     int *d_changed, *d_contradiction;
 
@@ -202,15 +207,14 @@ bool kernel(DIMACSInput& input) {
     cudaMemset(d_changed, 0, sizeof(int));
 
     const int TILE_SIZE = 16; 
-    int threadsPerBlock = 256; 
+    const int THREADS_PER_BLOCK = 256; 
     
-    int tilesPerBlock = threadsPerBlock / TILE_SIZE; 
-    int blocksPerGrid = (input.num_rules + tilesPerBlock - 1) / tilesPerBlock;
+    int tiles_per_block = THREADS_PER_BLOCK / TILE_SIZE; 
+    int blocks_per_grid = (input.num_rules + tiles_per_block - 1) / tiles_per_block;
 
-    int max_lits_per_block = tilesPerBlock * 16; 
+    int max_lits_per_block = tiles_per_block * 16; 
     
-    int maxSharedInts = input.M.size() + max_lits_per_block + max_lits_per_block + 2;
-    int sharedMemSize = maxSharedInts * sizeof(int);
+    int max_shared_mem = input.M.size() + max_lits_per_block + max_lits_per_block + 2;
 
     void* kernelArgs[] = {
         (void*)&d_M,
@@ -227,9 +231,9 @@ bool kernel(DIMACSInput& input) {
 
     cudaLaunchCooperativeKernel(
         (const void*)propagation_kernel<TILE_SIZE>,
-        dim3(blocksPerGrid), dim3(threadsPerBlock),
+        dim3(blocks_per_grid), dim3(THREADS_PER_BLOCK),
         kernelArgs,
-        sharedMemSize,
+        max_shared_mem * sizeof(int),
         0
     );
 
@@ -254,7 +258,7 @@ bool kernel(DIMACSInput& input) {
 
 int main() {
     DIMACSInput input = parse_dimacs_input();
-    bool contradiction = run_propagation(input);
+    bool contradiction = host(input);
     print_structure(input,contradiction);
 
 }

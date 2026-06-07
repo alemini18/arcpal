@@ -106,7 +106,7 @@ __global__ void kernel(
     }
 }
 
-bool run_propagation(DIMACSInput& input) {
+bool host(DIMACSInput& input) {
     int *d_M, *d_head, *d_bound, *d_rule_offsets, *d_flat_lits, *d_flat_weights;
     int *d_changed, *d_contradiction;
 
@@ -133,10 +133,10 @@ bool run_propagation(DIMACSInput& input) {
     cudaMemset(d_contradiction, 0, sizeof(int));
 
     const int TILE_SIZE = 16; 
-    int threadsPerBlock = 256; 
+    const int THREADS_PER_BLOCK = 256; 
     
-    int tilesPerBlock = threadsPerBlock / TILE_SIZE; 
-    int blocksPerGrid = (input.num_rules + tilesPerBlock - 1) / tilesPerBlock;
+    int tiles_per_block = THREADS_PER_BLOCK / TILE_SIZE; 
+    int blocks_per_grid = (input.num_rules + tiles_per_block - 1) / tiles_per_block;
 
     int h_changed = 1, h_contradiction = 0;
 
@@ -144,7 +144,7 @@ bool run_propagation(DIMACSInput& input) {
 
         cudaMemset(d_changed, 0, sizeof(int));
 
-        kernel<TILE_SIZE><<<blocksPerGrid, threadsPerBlock>>>(
+        kernel<TILE_SIZE><<<blocks_per_grid, THREADS_PER_BLOCK>>>(
             d_M, d_head, d_bound, d_rule_offsets, d_flat_lits, d_flat_weights,
             input.num_rules, d_changed, d_contradiction
         );
@@ -171,7 +171,7 @@ bool run_propagation(DIMACSInput& input) {
 
 int main() {
     DIMACSInput input = parse_dimacs_input();
-    bool contradiction = run_propagation(input);
+    bool contradiction = host(input);
     print_structure(input,contradiction);
 
 }

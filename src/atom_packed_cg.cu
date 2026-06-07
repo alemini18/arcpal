@@ -4,81 +4,14 @@
 #include <iostream>
 #include <stdexcept>
 #include <cuda_runtime.h>
-#include <cooperative_groups.h> // Required for grid sync
+#include <cooperative_groups.h> 
 
 #include "../include/parser.hpp" 
 #include "../include/printer.hpp" 
+#include "../include/reverse_tables.hpp"
 
 namespace cg = cooperative_groups;
 
-struct ReverseTables{
-    std::vector<int> atom_body_offsets;
-    std::vector<int> flat_atom_body_rules;
-    std::vector<int> flat_atom_body_lits;
-    std::vector<int> flat_atom_body_weights;
-
-    std::vector<int> atom_head_offsets;
-    std::vector<int> flat_atom_head_rules;
-};
-
-void build_reverse_tables(PropagatorInput& input, ReverseTables& revt) {
-    int num_atoms = input.num_atoms;
-    int num_rules = input.num_rules;
-
-    revt.atom_body_offsets.assign(num_atoms + 2, 0);
-    revt.atom_head_offsets.assign(num_atoms + 2, 0);
-
-    for (int r = 0; r < num_rules; r++) {
-        int h_lit = input.head[r];
-        if (h_lit != 0) {
-            int h_atom = std::abs(h_lit);
-            revt.atom_head_offsets[h_atom + 1]++;
-        }
-
-        int start = input.rule_offsets[r];
-        int end = input.rule_offsets[r + 1];
-        for (int i = start; i < end; ++i) {
-            int lit = input.flat_literals[i];
-            int atom = std::abs(lit);
-            revt.atom_body_offsets[atom + 1]++;
-        }
-    }
-
-    for (int a = 1; a <= num_atoms + 1; ++a) {
-        revt.atom_body_offsets[a] += revt.atom_body_offsets[a - 1];
-        revt.atom_head_offsets[a] += revt.atom_head_offsets[a - 1];
-    }
-
-    revt.flat_atom_body_rules.resize(revt.atom_body_offsets.back());
-    revt.flat_atom_body_lits.resize(revt.atom_body_offsets.back());
-    revt.flat_atom_body_weights.resize(revt.atom_body_offsets.back());
-    revt.flat_atom_head_rules.resize(revt.atom_head_offsets.back());
-
-    std::vector<int> current_body_offset = revt.atom_body_offsets;
-    std::vector<int> current_head_offset = revt.atom_head_offsets;
-
-    for (int r = 0; r < num_rules; ++r) {
-        int h_lit = input.head[r];
-        if (h_lit != 0) {
-            int h_atom = std::abs(h_lit);
-            int h_idx = current_head_offset[h_atom]++;
-            revt.flat_atom_head_rules[h_idx] = r;
-        }
-
-        int start = input.rule_offsets[r];
-        int end = input.rule_offsets[r + 1];
-        for (int i = start; i < end; ++i) {
-            int lit = input.flat_literals[i];
-            int atom = std::abs(lit);
-            int weight = input.flat_weights[i];
-
-            int b_idx = current_body_offset[atom]++;
-            revt.flat_atom_body_rules[b_idx] = r;
-            revt.flat_atom_body_lits[b_idx] = lit;
-            revt.flat_atom_body_weights[b_idx] = weight;
-        }
-    }
-}
 
 __device__ void atomicDeduceAtomQueue(int* M, int atom_id, int deduced_val, int* contradiction, int* queue_out, int* num_out) {
     int old_val = atomicCAS(&M[atom_id], UNDEF, deduced_val);

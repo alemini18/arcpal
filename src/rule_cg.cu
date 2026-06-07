@@ -162,24 +162,24 @@ int host(DIMACSInput& input) {
     cudaMemset(d_changed, 0, sizeof(int));
     cudaMemset(d_contradiction, 0, sizeof(int));
 
-    int threadsPerBlock = 256; 
-    int blocksPerGrid = input.num_rules;  
+    const int THREADS_PER_BLOCK = 256; 
+    int blocks_per_grid = input.num_rules;  
 
     void* kernelArgs[] = {
-    (void*)&d_M,
-    (void*)&d_head,
-    (void*)&d_bound,
-    (void*)&d_rule_offsets,
-    (void*)&d_flat_lits,
-    (void*)&d_flat_weights,
-    (void*)&input.num_rules,
-    (void*)&d_changed,
-    (void*)&d_contradiction
-};
+        (void*)&d_M,
+        (void*)&d_head,
+        (void*)&d_bound,
+        (void*)&d_rule_offsets,
+        (void*)&d_flat_lits,
+        (void*)&d_flat_weights,
+        (void*)&input.num_rules,
+        (void*)&d_changed,
+        (void*)&d_contradiction
+    };
 
     cudaLaunchCooperativeKernel(
         kernel,
-        dim3(blocksPerGrid), dim3(threadsPerBlock),
+        dim3(blocks_per_grid), dim3(THREADS_PER_BLOCK),
         kernelArgs,
         0, 0
     );

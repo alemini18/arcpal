@@ -22,8 +22,6 @@ __global__ void kernel(
     int num_rules, int* changed, int* contradiction
 ) {
     cg::grid_group grid = cg::this_grid();
-    
-    int rule_id = blockIdx.x;
 
     __shared__ int S_sat_shared_arr[256];
     __shared__ int S_undef_shared_arr[256];
@@ -40,7 +38,7 @@ __global__ void kernel(
         }
         grid.sync();
 
-        if(rule_id < num_rules){
+        for (int rule_id = blockIdx.x; rule_id < num_rules; rule_id += gridDim.x) {
         
             int start_idx = rule_offsets[rule_id];
             int end_idx = rule_offsets[rule_id + 1];
@@ -166,7 +164,19 @@ int host(DIMACSInput& input) {
     cudaMemset(d_contradiction, 0, sizeof(int));
 
     const int THREADS_PER_BLOCK = 256; 
-    int blocks_per_grid = input.num_rules;  
+    
+    int num_blocks_per_sm = 0;
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(&num_blocks_per_sm, (const void*)kernel, THREADS_PER_BLOCK, 0);
+    int device_id = 0;
+    cudaGetDevice(&device_id);
+    int num_SMs;
+    cudaDeviceGetAttribute(&num_SMs, cudaDevAttrMultiProcessorCount, device_id);
+    
+    int blocks_per_grid = num_SMs * num_blocks_per_sm;
+    if (blocks_per_grid > input.num_rules) {
+        blocks_per_grid = input.num_rules;
+    }
+    if (blocks_per_grid == 0) blocks_per_grid = 1;
 
     void* kernel_args[] = {
         (void*)&d_M,
@@ -180,12 +190,15 @@ int host(DIMACSInput& input) {
         (void*)&d_contradiction
     };
 
-    cudaLaunchCooperativeKernel(
+    cudaError_t launch_err = cudaLaunchCooperativeKernel(
         kernel,
         dim3(blocks_per_grid), dim3(THREADS_PER_BLOCK),
-        kernel_args,
+        kernelArgs,
         0, 0
     );
+    if (launch_err != cudaSuccess) {
+        cerr<<"Kernel Launch Error: "<<cudaGetErrorString(launch_err)<<endl;
+    }
 
     cudaDeviceSynchronize();
 

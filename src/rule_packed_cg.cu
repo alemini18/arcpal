@@ -27,8 +27,6 @@ __global__ void kernel(
     cg::thread_block block = cg::this_thread_block();
     cg::thread_block_tile<TILE_SIZE> tile = cg::tiled_partition<TILE_SIZE>(block);
 
-    int rule_id = (blockIdx.x * tile.meta_group_size()) + tile.meta_group_rank();
-
     bool flag = true;
     while(flag){
 
@@ -37,7 +35,10 @@ __global__ void kernel(
     }
     grid.sync();
 
-    if(rule_id < num_rules){
+    int total_tiles = gridDim.x * tile.meta_group_size();
+    for (int rule_id = (blockIdx.x * tile.meta_group_size()) + tile.meta_group_rank(); 
+         rule_id < num_rules; 
+         rule_id += total_tiles) {
 
         int start_idx = rule_offsets[rule_id];
         int end_idx = rule_offsets[rule_id + 1];
@@ -151,8 +152,20 @@ bool host(DIMACSInput& input) {
     const int TILE_SIZE = 16; 
     const int THREADS_PER_BLOCK = 256; 
     
+    int num_blocks_per_sm = 0;
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(&num_blocks_per_sm, (const void*)kernel<TILE_SIZE>, THREADS_PER_BLOCK, 0);
+    int device_id = 0;
+    cudaGetDevice(&device_id);
+    int num_SMs;
+    cudaDeviceGetAttribute(&num_SMs, cudaDevAttrMultiProcessorCount, device_id);
+    
     int tiles_per_block = THREADS_PER_BLOCK / TILE_SIZE; 
-    int blocks_per_grid = (input.num_rules + tiles_per_block - 1) / tiles_per_block;
+    int blocks_per_grid = num_SMs * numBlocksPerSm;
+    int required_blocks = (input.num_rules + tiles_per_block - 1) / tiles_per_block;
+    if (blocks_per_grid > required_blocks) {
+        blocks_per_grid = required_blocks;
+    }
+    if (blocks_per_grid == 0) blocks_per_grid = 1;
 
     void* kernel_args[] = {
     (void*)&d_M,
@@ -166,12 +179,15 @@ bool host(DIMACSInput& input) {
     (void*)&d_contradiction
 };
 
-    cudaLaunchCooperativeKernel(
+    cudaError_t launch_err = cudaLaunchCooperativeKernel(
         kernel<TILE_SIZE>,
         dim3(blocks_per_grid), dim3(THREADS_PER_BLOCK),
         kernel_args,
         0, 0
     );
+    if (launch_err != cudaSuccess) {
+        cerr<<"Kernel Launch Error: "<< cudaGetErrorString(launch_err)<<endl;
+    }
 
     cudaDeviceSynchronize();
 

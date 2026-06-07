@@ -1,5 +1,6 @@
 #include <vector>
 #include <cmath>
+#include <iostream>
 #include <cuda_runtime.h>
 
 #include "../include/parser.hpp" 
@@ -7,6 +8,7 @@
 #include "../include/reverse_tables.hpp"
 
 using namespace std;
+namespace cg = cooperative_groups;
 
 
 __device__ void atomicAssignAndQueue(int* M, int atom, int val, int* contradiction, int* queue_out, int* num_out) {
@@ -77,7 +79,7 @@ __global__ void init_sums_kernel(
 
 
 __device__ void update_sums_kernel(
-    const int idx, const int* modified_atoms, int num_modified,
+    const int idx, const int* modified_atoms,
     const int* M,
     const int* atom_body_offsets, const int* atom_body_rules, 
     const int* atom_body_lits, const int* atom_body_weights,
@@ -119,10 +121,10 @@ __device__ void deduce_kernel(
     const int* head, const int* bound, const int* rule_offsets,
     const int* flat_lits, const int* flat_weights,
     int* S_sat_global, int* S_undef_global, int* updated_rules,
-    int num_rules, int* contradiction, int* queue_out, int* num_out,
+    int* contradiction, int* queue_out, int* num_out,
     int* h_val_shared
 ) {
-    if (rule_id >= num_rules || *contradiction) return;
+    if (*contradiction) return;
 
     if (updated_rules[rule_id] == 0) return;
     __syncthreads();
@@ -150,11 +152,11 @@ __device__ void deduce_kernel(
         } else if (S_max < B) { 
             atomicAssignAndQueue(M, h_atom, h_not_val, contradiction, queue_out, num_out);
         }
-        h_val_shared = M[h_atom];
+        *h_val_shared = M[h_atom];
     }
     __syncthreads();
 
-    h_val = h_val_shared;
+    h_val = *h_val_shared;
     
     if (h_val != UNDEF) {
         bool h_sat = ((h_lit > 0) && h_val == TRUE) || ((h_lit < 0) && h_val == FALSE);
@@ -202,14 +204,10 @@ __global__ void kernel(
 
     for(int rule_id = blockIdx.x; rule_id < num_rules; rule_id += gridDim.x){
 
-        deduce_kernel(rule_id, M,
-            atom_body_offsets, atom_body_rules, atom_body_lits, atom_body_weights,
-            atom_head_offsets, atom_head_rules,
-            head, bound, rule_offsets, flat_lits, flat_weights,
-            S_sat, S_undef,
-            updated_rules, num_rules, contradiction,
-            queue_0, queue_1,
-            num_out, num_in, swap_flag, h_val_shared);
+        deduce_kernel(rule_id, M, head, bound, rule_offsets,
+            flat_lits, flat_weights, S_sat, S_undef,
+            updated_rules, contradiction,
+            queue_out, num_out, h_val_shared);
     }
 
     grid.sync();
@@ -236,14 +234,10 @@ __global__ void kernel(
 
         for(int rule_id = blockIdx.x; rule_id < num_rules; rule_id += gridDim.x){
             
-            deduce_kernel(rule_id, M,
-            atom_body_offsets, atom_body_rules, atom_body_lits, atom_body_weights,
-            atom_head_offsets, atom_head_rules,
-            head, bound, rule_offsets, flat_lits, flat_weights,
-            S_sat, S_undef,
-            updated_rules, num_rules, contradiction,
-            queue_0, queue_1,
-            num_out, num_in, swap_flag, h_val_shared);
+            deduce_kernel(rule_id, M, head, bound, rule_offsets,
+            flat_lits, flat_weights, S_sat, S_undef,
+            updated_rules, contradiction,
+            queue_out, num_out, h_val_shared);
         }
 
         grid.sync();

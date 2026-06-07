@@ -1,10 +1,11 @@
 #include "../include/parser.hpp" 
 #include "../include/printer.hpp"
 #include <iostream>
+#include <cmath>
 
 using namespace std;
 
-void print_structure(DIMACSInput& data, bool is_contradiction) {
+void print_structure(DIMACSInput& data, int is_contradiction) {
 
     if(is_contradiction){
         cout << "s CONTRADICTION\n";

@@ -162,7 +162,7 @@ bool host(DIMACSInput& input) {
     cudaDeviceGetAttribute(&num_SMs, cudaDevAttrMultiProcessorCount, device_id);
     
     int tiles_per_block = THREADS_PER_BLOCK / TILE_SIZE; 
-    int blocks_per_grid = num_SMs * numBlocksPerSm;
+    int blocks_per_grid = num_SMs * num_blocks_per_sm;
     int required_blocks = (input.num_rules + tiles_per_block - 1) / tiles_per_block;
     if (blocks_per_grid > required_blocks) {
         blocks_per_grid = required_blocks;

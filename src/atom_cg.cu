@@ -104,9 +104,9 @@ __global__ void kernel(
         int end_idx = rule_offsets[rule_id + 1];
         int B = bound[rule_id];
 
-        int S_sat = S_sat[rule_id];
-        int S_undef = S_undef[rule_id];
-        int S_max = S_sat + S_undef;
+        int local_S_sat = S_sat[rule_id];
+        int local_S_undef = S_undef[rule_id];
+        int S_max = local_S_sat + local_S_undef;
 
         int h_lit = head[rule_id];
         int h_atom = abs(h_lit);
@@ -114,7 +114,7 @@ __global__ void kernel(
         int h_not_val = (h_lit > 0) ? FALSE : TRUE;
 
         if (threadIdx.x == 0) {
-            if (S_sat >= B) { 
+            if (local_S_sat >= B) { 
                 atomicAssignAndQueue(M, h_atom, h_val, contradiction, queue_out, num_out);
             } else if (S_max < B) { 
                 atomicAssignAndQueue(M, h_atom, h_not_val, contradiction, queue_out, num_out);
@@ -141,7 +141,7 @@ __global__ void kernel(
                             atomicAssignAndQueue(M, atom, lit_val, contradiction, queue_out, num_out);
                         }
                     } else { 
-                        if (S_sat + weight >= B) { 
+                        if (local_S_sat + weight >= B) { 
                             atomicAssignAndQueue(M, atom, lit_not_val, contradiction, queue_out, num_out);
                         }
                     }
@@ -211,9 +211,9 @@ __global__ void kernel(
             int end_idx = rule_offsets[rule_id + 1];
             int B = bound[rule_id];
 
-            int S_sat = S_sat[rule_id];
-            int S_undef = S_undef[rule_id];
-            int S_max = S_sat + S_undef;
+            int local_S_sat = S_sat[rule_id];
+            int local_S_undef = S_undef[rule_id];
+            int S_max = local_S_sat + local_S_undef;
 
             int h_lit = head[rule_id];
             int h_atom = abs(h_lit);
@@ -221,7 +221,7 @@ __global__ void kernel(
             int h_not_val = (h_lit > 0) ? FALSE : TRUE;
 
             if (threadIdx.x == 0) {
-                if (S_sat >= B) { 
+                if (local_S_sat >= B) { 
                     atomicAssignAndQueue(M, h_atom, h_val, contradiction, queue_out, num_out);
                 } else if (S_max < B) { 
                     atomicAssignAndQueue(M, h_atom, h_not_val, contradiction, queue_out, num_out);
@@ -248,7 +248,7 @@ __global__ void kernel(
                                 atomicAssignAndQueue(M, atom, lit_val, contradiction, queue_out, num_out);
                             }
                         } else { 
-                            if (S_sat + weight >= B) { 
+                            if (local_S_sat + weight >= B) { 
                                 atomicAssignAndQueue(M, atom, lit_not_val, contradiction, queue_out, num_out);
                             }
                         }
@@ -292,8 +292,8 @@ int host(DIMACSInput& input, ReverseTables& revt) {
     cudaMalloc(&d_rule_offsets, input.rule_offsets.size() * sizeof(int));
     cudaMemcpy(d_rule_offsets, input.rule_offsets.data(), input.rule_offsets.size() * sizeof(int), cudaMemcpyHostToDevice);
 
-    cudaMalloc(&d_flat_literals, input.flat_literals.size() * sizeof(int));
-    cudaMemcpy(d_flat_literals, input.flat_literals.data(), input.flat_literals.size() * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMalloc(&d_flat_lits, input.flat_lits.size() * sizeof(int));
+    cudaMemcpy(d_flat_lits, input.flat_lits.data(), input.flat_lits.size() * sizeof(int), cudaMemcpyHostToDevice);
 
     cudaMalloc(&d_flat_weights, input.flat_weights.size() * sizeof(int));
     cudaMemcpy(d_flat_weights, input.flat_weights.data(), input.flat_weights.size() * sizeof(int), cudaMemcpyHostToDevice);
@@ -339,7 +339,7 @@ int host(DIMACSInput& input, ReverseTables& revt) {
     int blocks_per_grid( (input.num_rules + THREADS_PER_BLOCK - 1) / THREADS_PER_BLOCK);
 
     init_sums_kernel<<<blocks_per_grid, THREADS_PER_BLOCK>>>(
-        d_M, d_rule_offsets, d_flat_literals, d_flat_weights, 
+        d_M, d_rule_offsets, d_flat_lits, d_flat_weights, 
         d_S_sat, d_S_undef, d_updated_rules, input.num_rules
     );
     cudaDeviceSynchronize();
@@ -355,7 +355,7 @@ int host(DIMACSInput& input, ReverseTables& revt) {
         &d_head,
         &d_bound,
         &d_rule_offsets,
-        &d_flat_literals,
+        &d_flat_lits,
         &d_flat_weights,
         &d_S_sat,
         &d_S_undef,
@@ -370,7 +370,7 @@ int host(DIMACSInput& input, ReverseTables& revt) {
     };
 
     cudaLaunchCooperativeKernel(
-        (void*)persistent_fixed_point_kernel,
+        (void*)kernel,
         blocks_per_grid,
         THREADS_PER_BLOCK,
         kernel_args
@@ -385,7 +385,7 @@ int host(DIMACSInput& input, ReverseTables& revt) {
     cudaFree(d_head);
     cudaFree(d_bound);
     cudaFree(d_rule_offsets);
-    cudaFree(d_flat_literals);
+    cudaFree(d_flat_lits);
     cudaFree(d_flat_weights);
     cudaFree(d_atom_body_offsets);
     cudaFree(d_atom_body_rules);

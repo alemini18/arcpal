@@ -77,9 +77,9 @@ __global__ void kernel(
         // Body -> Head
         if (tile.thread_rank() == 0) {
             if (S_sat >= B) { 
-                atomicAssign(M, h_atom, h_val, global_contradiction, global_changed);
+                atomicAssign(M, h_atom, h_val, contradiction, changed);
             } else if (S_max < B) { 
-                atomicAssign(M, h_atom, h_not_val, global_contradiction, global_changed);
+                atomicAssign(M, h_atom, h_not_val, contradiction, changed);
             }
         }
 
@@ -166,7 +166,7 @@ bool host(DIMACSInput& input) {
 };
 
     cudaLaunchCooperativeKernel(
-        propagation_kernel<TILE_SIZE>,
+        kernel<TILE_SIZE>,
         dim3(blocks_per_grid), dim3(THREADS_PER_BLOCK),
         kernelArgs,
         0, 0
@@ -194,6 +194,6 @@ bool host(DIMACSInput& input) {
 int main() {
     DIMACSInput input = parse_dimacs_input();
     bool contradiction = host(input);
-    print_structure(input);
+    print_structure(input,contradiction);
 
 }

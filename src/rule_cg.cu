@@ -25,6 +25,8 @@ __global__ void kernel(
     
     int rule_id = blockIdx.x;
 
+    __shared__ int S_sat_shared_arr[256];
+    __shared__ int S_undef_shared_arr[256];
     __shared__ int S_sat_shared;
     __shared__ int S_undef_shared;
     
@@ -66,16 +68,20 @@ __global__ void kernel(
                     }
                 }
 
+                S_sat_shared_arr[threadIdx.x] = partial_S_sat;
+                S_undef_shared_arr[threadIdx.x] = partial_S_undef;
+                __syncthreads();
+
                 for(int offset = blockDim.x / 2; offset > 0; offset /= 2){
                     if(threadIdx.x < offset){
-                        partial_S_sat += partial_S_sat[threadIdx.x + offset];
-                        partial_S_undef += partial_S_undef[threadIdx.x + offset];
+                        S_sat_shared_arr[threadIdx.x] += S_sat_shared_arr[threadIdx.x + offset];
+                        S_undef_shared_arr[threadIdx.x] += S_undef_shared_arr[threadIdx.x + offset];
                     }
                     __syncthreads();
                 }
                 if(threadIdx.x == 0){
-                    S_sat_shared = partial_S_sat;
-                    S_undef_shared = partial_S_undef;
+                    S_sat_shared = S_sat_shared_arr[0];
+                    S_undef_shared = S_undef_shared_arr[0];
                 }
                 __syncthreads();
                 

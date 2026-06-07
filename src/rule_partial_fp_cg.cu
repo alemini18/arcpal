@@ -76,7 +76,7 @@ __global__ void kernel(
     bool flag_global = true;
     while(flag_global) {
 
-        if(blockIdx.x == 0 && threadIdx.x == 0) *global_changed = 0;
+        if(blockIdx.x == 0 && threadIdx.x == 0) *changed = 0;
         grid.sync();
 
         for (int i = block.thread_rank(); i < num_atoms + 1; i += block.size()) {
@@ -170,12 +170,12 @@ __global__ void kernel(
 
         for (int i = block.thread_rank(); i < num_atoms + 1; i += block.size()) {
             if (M_local[i] != UNDEF) {
-                atomicAssign(M, i, M_local[i], global_contradiction, global_changed);
+                atomicAssign(M, i, M_local[i], contradiction, changed);
             }
         }
         grid.sync();
 
-        if (*global_changed == 0 || *global_contradiction == 1) flag_global = false;
+        if (*changed == 0 || *contradiction == 1) flag_global = false;
     }
 }
 
@@ -230,7 +230,7 @@ bool host(DIMACSInput& input) {
     };
 
     cudaLaunchCooperativeKernel(
-        (const void*)propagation_kernel<TILE_SIZE>,
+        (const void*)kernel<TILE_SIZE>,
         dim3(blocks_per_grid), dim3(THREADS_PER_BLOCK),
         kernelArgs,
         max_shared_mem * sizeof(int),

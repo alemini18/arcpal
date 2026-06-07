@@ -39,7 +39,7 @@ __global__ void init_sums_kernel(
     int partial_undef = 0;
 
     for (int i = start_idx + tile.thread_rank(); i < end_idx; i+=tile.size()) {
-        int lit = flat_literals[i];
+        int lit = flat_lits[i];
         int weight = flat_weights[i];
         int atom = abs(lit);
         int m_val = M[atom];
@@ -91,9 +91,9 @@ __global__ void kernel(
         int end_idx = rule_offsets[rule_id + 1];
         int B = bound[rule_id];
 
-        int S_sat = S_sat[rule_id];
-        int S_undef = S_undef[rule_id];
-        int S_max = S_sat + S_undef;
+        int local_S_sat = S_sat[rule_id];
+        int local_S_undef = S_undef[rule_id];
+        int S_max = local_S_sat + local_S_undef;
 
         int h_lit = head[rule_id];
         int h_atom = abs(h_lit);
@@ -101,7 +101,7 @@ __global__ void kernel(
         int h_not_val = (h_lit > 0) ? FALSE : TRUE;
 
         if (tile.thread_rank() == 0) {
-            if (S_sat >= B) { 
+            if (local_S_sat >= B) { 
                 atomicAssignAndQueue(M, h_atom, h_val, contradiction, queue_out, num_out);
             } else if (S_max < B) { 
                 atomicAssignAndQueue(M, h_atom, h_not_val, contradiction, queue_out, num_out);
@@ -128,7 +128,7 @@ __global__ void kernel(
                             atomicAssignAndQueue(M, atom, lit_val, contradiction, queue_out, num_out);
                         }
                     } else { 
-                        if (S_sat + weight >= B) { 
+                        if (local_S_sat + weight >= B) { 
                             atomicAssignAndQueue(M, atom, lit_not_val, contradiction, queue_out, num_out);
                         }
                     }
@@ -190,17 +190,17 @@ __global__ void kernel(
             int end_idx = rule_offsets[rule_id + 1];
             int B = bound[rule_id];
 
-            int S_sat = S_sat[rule_id];
-            int S_undef = S_undef[rule_id];
-            int S_max = S_sat + S_undef;
+            int local_S_sat = S_sat[rule_id];
+            int local_S_undef = S_undef[rule_id];
+            int S_max = local_S_sat + local_S_undef;
 
-            int h_lit = d_head[rule_id];
+            int h_lit = head[rule_id];
             int h_atom = abs(h_lit);
             int h_val = (h_lit > 0) ? TRUE : FALSE;
             int h_not_val = (h_lit > 0) ? FALSE : TRUE;
 
             if (tile.thread_rank() == 0) {
-                if (S_sat >= B) { 
+                if (local_S_sat >= B) { 
                     atomicAssignAndQueue(M, h_atom, h_val, contradiction, queue_out, num_out);
                 } else if (S_max < B) { 
                     atomicAssignAndQueue(M, h_atom, h_not_val, contradiction, queue_out, num_out);
@@ -227,7 +227,7 @@ __global__ void kernel(
                                 atomicAssignAndQueue(M, atom, lit_val, contradiction, queue_out, num_out);
                             }
                         } else { 
-                            if (S_sat + weight >= B) { 
+                            if (local_S_sat + weight >= B) { 
                                 atomicAssignAndQueue(M, atom, lit_not_val, contradiction, queue_out, num_out);
                             }
                         }
@@ -348,7 +348,7 @@ int host(DIMACSInput& input, ReverseTables& revt) {
     };
 
     cudaLaunchCooperativeKernel(
-        (void*)persistent_fixed_point_kernel<TILE_SIZE>, 
+        (void*)kernel<TILE_SIZE>, 
         blocks_per_grid, 
         THREADS_PER_BLOCK,
         kernel_args

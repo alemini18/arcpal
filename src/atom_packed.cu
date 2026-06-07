@@ -244,14 +244,14 @@ int host(DIMACSInput& input, ReverseTables& revt) {
 
 
     init_sums_kernel<TILE_SIZE><<<blocks_per_grid, THREADS_PER_BLOCK>>>(
-        d_M, d_rule_offsets, d_flat_literals, d_flat_weights, 
+        d_M, d_rule_offsets, d_flat_lits, d_flat_weights, 
         d_S_sat, d_S_undef, d_updated_rules, input.num_rules
     );
     cudaDeviceSynchronize();
 
     cudaMemset(d_num_out, 0, sizeof(int));
     deduce_kernel<TILE_SIZE><<<blocks_per_grid, THREADS_PER_BLOCK>>>(
-        d_M, d_head, d_bound, d_rule_offsets, d_flat_literals, d_flat_weights,
+        d_M, d_head, d_bound, d_rule_offsets, d_flat_lits, d_flat_weights,
         d_S_sat, d_S_undef, d_updated_rules, input.num_rules, d_contradiction, d_queue_out, d_num_out
     );
     cudaDeviceSynchronize();
@@ -278,7 +278,7 @@ int host(DIMACSInput& input, ReverseTables& revt) {
         cudaDeviceSynchronize();
 
         deduce_kernel<TILE_SIZE><<<blocks_per_grid, THREADS_PER_BLOCK>>>(
-            d_M, d_head, d_bound, d_rule_offsets, d_flat_literals, d_flat_weights,
+            d_M, d_head, d_bound, d_rule_offsets, d_flat_lits, d_flat_weights,
             d_S_sat, d_S_undef, d_updated_rules, input.num_rules, d_contradiction, d_queue_out, d_num_out
         );
         cudaDeviceSynchronize();
@@ -293,7 +293,7 @@ int host(DIMACSInput& input, ReverseTables& revt) {
     cudaFree(d_head); 
     cudaFree(d_bound); 
     cudaFree(d_rule_offsets); 
-    cudaFree(d_flat_literals); 
+    cudaFree(d_flat_lits); 
     cudaFree(d_flat_weights);
     cudaFree(d_atom_body_offsets); 
     cudaFree(d_atom_body_rules); 

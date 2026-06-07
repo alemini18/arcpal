@@ -246,10 +246,10 @@ __global__ void kernel(
         }
     
         grid.sync();
-        if (grid.thread_rank() == 0) {
-            if (*num_out == 0 || *contradiction != 0) {
-                *num_in = 0; 
-            } else {
+        if (*num_out == 0 || *contradiction != 0) {
+            flag = false;
+        } else {
+            if (grid.thread_rank() == 0) {
                 *swap_flag = 1 - *swap_flag;
                 *num_in = *num_out;
                 *num_out = 0;

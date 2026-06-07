@@ -122,10 +122,11 @@ __global__ void kernel(
             } else if (S_max < B) { 
                 atomicAssignAndQueue(M, h_atom, h_not_val, contradiction, queue_out, num_out);
             }
+            h_val_shared = M[h_atom];
         }
         __syncthreads();
 
-        int h_val_cur = M[h_atom];
+        h_val = h_val_shared;
         
         if (h_val_cur != UNDEF) {
             bool h_sat = ((h_lit > 0) && h_val_cur == TRUE) || ((h_lit < 0) && h_val_cur == FALSE);
@@ -265,10 +266,10 @@ __global__ void kernel(
         // ---------------------------------------------------------------------
 
         grid.sync();
-        if (grid.thread_rank() == 0) {
-            if (*num_out == 0 || *contradiction != 0) {
-                flag = false;
-            } else {
+        if (*num_out == 0 || *contradiction != 0) {
+            flag = false;
+        } else {
+            if (grid.thread_rank() == 0) {
                 *swap_flag = 1 - *swap_flag;
                 *num_in = *num_out;
                 *num_out = 0;

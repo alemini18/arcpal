@@ -1,6 +1,7 @@
 #include <vector>
 #include <cmath>
 #include <cuda_runtime.h>
+#include <nvtx3/nvtx3.hpp>
 
 #include "../include/parser.hpp" 
 #include "../include/printer.hpp" 
@@ -320,7 +321,10 @@ bool host(DIMACSInput& input, ReverseTables& revt) {
 int main() {
     DIMACSInput input = parse_dimacs_input();
     ReverseTables revt;
+    {
+    nvtx3::scoped_range marker("build_reverse_tables");
     build_reverse_tables(input, revt);
+    }
     bool contradiction = host(input,revt);
     print_structure(input);
 

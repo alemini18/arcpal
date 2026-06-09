@@ -1,6 +1,7 @@
 #include <vector>
 #include <cuda_runtime.h>
 #include <cooperative_groups.h>
+#include <nvtx3/nvtx3.hpp>
 
 #include "../include/parser.hpp" 
 #include "../include/printer.hpp" 
@@ -316,7 +317,10 @@ int host(DIMACSInput& input, ReverseTables& revt) {
 int main() {
     DIMACSInput input = parse_dimacs_input();
     ReverseTables revt;
+    {
+    nvtx3::scoped_range marker("build_reverse_tables");
     build_reverse_tables(input, revt);
+    }
     int contradiction = host(input, revt);
     print_structure(input, contradiction);
 

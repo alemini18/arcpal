@@ -2,6 +2,8 @@
 
 EXEC="$1"
 
+exec_name="$(basename "$EXEC")"
+
 if [ ! -f "$EXEC" ]; then
     echo "Error: Executable '$EXEC' not found. Please run 'make' first."
     exit 1
@@ -14,7 +16,7 @@ echo "================================================================="
 PASSED=0
 FAILED=0
 TOTAL=0
-GLOBAL_CSV="tests/sudoku/output/nsys_summary.csv"
+GLOBAL_CSV="tests/sudoku/stats/${exec_name}_nsys_summary.csv"
 echo "Test File,Time (%),Total Time (ns),Instances,Avg (ns),Med (ns),Min (ns),Max (ns),StdDev (ns),Kernel Name" > "$GLOBAL_CSV"
 
 python3 compact_to_dimacs.py "$2"

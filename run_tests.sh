@@ -34,7 +34,7 @@ for test_file in tests/sudoku/input/*.in; do
     STATS_LOG="tests/sudoku/output/${filename}_nsys_stats.log"
     STATS_CSV="tests/sudoku/output/${filename}_nsys_stats.csv"
     
-    nsys profile -t cuda --force-overwrite=true -o "$NSYS_REP" "$EXEC" < "$test_file" > "$TMP_OUT"
+    nsys profile -t nvtx,cuda --force-overwrite=true -o "$NSYS_REP" "$EXEC" < "$test_file" > "$TMP_OUT"
     nsys stats --force-export=true "${NSYS_REP}.nsys-rep" >> "$STATS_LOG"
     nsys stats --report=cuda_gpu_kern_sum,cuda_gpu_mem_size_sum,cuda_api_sum --force-export=true --format=csv "${NSYS_REP}.nsys-rep" > "$STATS_CSV"
     

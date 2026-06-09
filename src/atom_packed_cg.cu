@@ -183,13 +183,17 @@ __global__ void kernel(
     int* queue_0, int* queue_1, int* num_out, int* num_in, int* swap_flag
 ) {
     cg::grid_group grid = cg::this_grid();
+    cg::thread_block block = cg::this_thread_block();
+    cg::thread_block_tile<TILE_SIZE> tile = cg::tiled_partition<TILE_SIZE>(block);
     
     int* queue_out = queue_0;
     
     if (*contradiction) return;
+    
+    int total_tiles = gridDim.x * tile.meta_group_size();
 
-
-    for(int rule_id = blockIdx.x; rule_id < num_rules; rule_id += gridDim.x){
+    for(int rule_id = (blockIdx.x * tile.meta_group_size()) + tile.meta_group_rank();
+            rule_id < num_rules; rule_id += total_tiles){
 
         deduce_kernel<TILE_SIZE>(rule_id, M, head, bound, rule_offsets,
             flat_lits, flat_weights, S_sat, S_undef,
@@ -219,7 +223,8 @@ __global__ void kernel(
         grid.sync();
         if (*contradiction) break;
 
-        for(int rule_id = blockIdx.x; rule_id < num_rules; rule_id += gridDim.x){
+        for(int rule_id = (blockIdx.x * tile.meta_group_size()) + tile.meta_group_rank();
+            rule_id < num_rules; rule_id += total_tiles){
             
             deduce_kernel<TILE_SIZE>(rule_id, M, head, bound, rule_offsets,
             flat_lits, flat_weights, S_sat, S_undef,

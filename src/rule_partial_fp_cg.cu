@@ -127,6 +127,7 @@ __global__ void kernel(
                 int S_sat = tile.shfl(partial_S_sat, 0);
                 int S_undef = tile.shfl(partial_S_undef, 0);
                 int S_max = S_sat + S_undef;
+                int h_assigned = UNDEF;
 
                 // Body -> Head
                 if (tile.thread_rank() == 0) {
@@ -135,15 +136,15 @@ __global__ void kernel(
                     } else if (S_max < B) { 
                         atomicAssign(M_local, h_atom, h_not_val, local_contradiction, local_changed);
                     }
-                    h_val = M_local[h_atom];
+                    h_assigned = M_local[h_atom];
                 }
                 
                 tile.sync();
 
                 // Head -> Body
-                h_val = tile.shfl(h_val,0);
-                if (h_val != UNDEF) {
-                    bool h_sat = ((h_lit > 0) && h_val == TRUE) || ((h_lit < 0) && h_val == FALSE);
+                h_assigned = tile.shfl(h_assigned,0);
+                if (h_assigned != UNDEF) {
+                    bool h_sat = ((h_lit > 0) && h_assigned == TRUE) || ((h_lit < 0) && h_assigned == FALSE);
 
                     for (int i = start_idx + tile.thread_rank(); i < end_idx; i += tile.size()) {                      
                         int lit = lits_local[i - start_lit];
@@ -218,7 +219,7 @@ bool host(DIMACSInput& input) {
     int tiles_per_block = THREADS_PER_BLOCK / TILE_SIZE; 
     int blocks_per_grid = (input.num_rules + tiles_per_block - 1) / tiles_per_block;
 
-    int max_lits_per_block = tiles_per_block * 16; 
+    int max_lits_per_block = tiles_per_block * TILE_SIZE; 
     
     int max_shared_mem = input.M.size() + max_lits_per_block + max_lits_per_block + 2;
 

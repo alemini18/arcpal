@@ -10,11 +10,11 @@
 namespace cg = cooperative_groups;
 
 
-__device__ void atomicAssignAndQueue(int* M, int atom, int val, int* contradiction, int* queue_out, int* num_out) {
+__device__ void atomicAssignAndQueue(int* M, int atom, int val, int* contradiction, int* queue, int* q_size) {
     int old_val = atomicCAS(&M[atom], UNDEF, val);
     if (old_val == UNDEF) {
-        int idx = atomicAdd(num_out, 1);
-        queue_out[idx] = atom;
+        int idx = atomicAdd(q_size, 1);
+        queue[idx] = atom;
     } else if (old_val != val) {
         *contradiction = 1; 
     }
@@ -105,7 +105,7 @@ __device__ void deduce_kernel(
     const int* head, const int* bound, const int* rule_offsets,
     const int* flat_lits, const int* flat_weights,
     int* S_sat_global, int* S_undef_global, int* updated_rules,
-     int* contradiction, int* queue_out, int* num_out
+     int* contradiction, int* queue, int* q_size
 ) {
 
     cg::thread_block block = cg::this_thread_block();
@@ -135,9 +135,9 @@ __device__ void deduce_kernel(
 
     if (tile.thread_rank() == 0) {
         if (S_sat >= B) { 
-            atomicAssignAndQueue(M, h_atom, h_val, contradiction, queue_out, num_out);
+            atomicAssignAndQueue(M, h_atom, h_val, contradiction, queue, q_size);
         } else if (S_max < B) { 
-            atomicAssignAndQueue(M, h_atom, h_not_val, contradiction, queue_out, num_out);
+            atomicAssignAndQueue(M, h_atom, h_not_val, contradiction, queue, q_size);
         }
         h_val = M[h_atom];
     }
@@ -159,11 +159,11 @@ __device__ void deduce_kernel(
             if (M[atom] == UNDEF) {
                 if (h_sat) { 
                     if (S_max - weight < B) { 
-                        atomicAssignAndQueue(M, atom, lit_val, contradiction, queue_out, num_out);
+                        atomicAssignAndQueue(M, atom, lit_val, contradiction, queue, q_size);
                     }
                 } else { 
                     if (S_sat + weight >= B) { 
-                        atomicAssignAndQueue(M, atom, lit_not_val, contradiction, queue_out, num_out);
+                        atomicAssignAndQueue(M, atom, lit_not_val, contradiction, queue, q_size);
                     }
                 }
             }
@@ -180,40 +180,34 @@ __global__ void kernel(
     const int* flat_lits, const int* flat_weights,
     int* S_sat, int* S_undef, int* updated_rules,
     int num_rules, int* contradiction,
-    int* queue_0, int* queue_1, int* num_out, int* num_in, int* swap_flag
+    int* queue, int* q_size
 ) {
     cg::grid_group grid = cg::this_grid();
     cg::thread_block block = cg::this_thread_block();
     cg::thread_block_tile<TILE_SIZE> tile = cg::tiled_partition<TILE_SIZE>(block);
-    
-    int* queue_out = queue_0;
-    
+        
     if (*contradiction) return;
     
     int total_tiles = gridDim.x * tile.meta_group_size();
 
-    for(int rule_id = (blockIdx.x * tile.meta_group_size()) + tile.meta_group_rank();
-            rule_id < num_rules; rule_id += total_tiles){
+    while (true) {
 
-        deduce_kernel<TILE_SIZE>(rule_id, M, head, bound, rule_offsets,
+        for(int rule_id = (blockIdx.x * tile.meta_group_size()) + tile.meta_group_rank();
+            rule_id < num_rules; rule_id += total_tiles){
+            
+            deduce_kernel<TILE_SIZE>(rule_id, M, head, bound, rule_offsets,
             flat_lits, flat_weights, S_sat, S_undef,
             updated_rules, contradiction,
-            queue_out, num_out);
-    }
+            queue, q_size);
+        }
 
-    grid.sync();
+        grid.sync();
+        if (*q_size == 0 || *contradiction) break;
 
-    bool flag = true;
-
-    while (flag) {
-
-        int* queue_in = (*swap_flag == 1) ? queue_0 : queue_1;
-        queue_out = (*swap_flag == 1) ? queue_1 : queue_0;
-
-        for(int idx = grid.thread_rank(); idx < *num_in; idx += grid.size()){
+        for(int idx = grid.thread_rank(); idx < *q_size; idx += grid.size()){
 
             update_sums_kernel(idx,
-                queue_in,
+                queue,
                 M,
                 atom_body_offsets, atom_body_rules, atom_body_lits, atom_body_weights,
                 atom_head_offsets, atom_head_rules,
@@ -222,26 +216,7 @@ __global__ void kernel(
 
         grid.sync();
         if (*contradiction) break;
-
-        for(int rule_id = (blockIdx.x * tile.meta_group_size()) + tile.meta_group_rank();
-            rule_id < num_rules; rule_id += total_tiles){
-            
-            deduce_kernel<TILE_SIZE>(rule_id, M, head, bound, rule_offsets,
-            flat_lits, flat_weights, S_sat, S_undef,
-            updated_rules, contradiction,
-            queue_out, num_out);
-        }
-
-        grid.sync();
-        if (*num_out == 0 || *contradiction != 0) {
-            flag = false;
-        } else {
-            if (grid.thread_rank() == 0) {
-                *swap_flag = 1 - *swap_flag;
-                *num_in = *num_out;
-                *num_out = 0;
-            }
-        }
+        if(grid.thread_rank() == 0)*q_size = 0;
         grid.sync();
     }
 }
@@ -251,7 +226,7 @@ int host(DIMACSInput& input, ReverseTables& revt) {
     int *d_atom_body_offsets, *d_atom_body_rules, *d_atom_body_lits, *d_atom_body_weights;
     int *d_atom_head_offsets, *d_atom_head_rules;
     int *d_S_sat, *d_S_undef, *d_updated_rules;
-    int *d_queue_0, *d_queue_1, *d_num_out, *d_num_in, *d_swap_flag, *d_contradiction;
+    int *d_queue, *d_q_size, *d_contradiction;
 
     cudaMalloc(&d_M, input.M.size() * sizeof(int));
     cudaMemcpy(d_M, input.M.data(), input.M.size() * sizeof(int), cudaMemcpyHostToDevice);
@@ -293,19 +268,14 @@ int host(DIMACSInput& input, ReverseTables& revt) {
     cudaMalloc(&d_S_undef, input.num_rules * sizeof(int));
     cudaMalloc(&d_updated_rules, input.num_rules * sizeof(int));
 
-    cudaMalloc(&d_queue_0, input.num_atoms * sizeof(int));
-    cudaMalloc(&d_queue_1, input.num_atoms * sizeof(int));
+    cudaMalloc(&d_queue, input.num_atoms * sizeof(int));
     
-    cudaMalloc(&d_num_out, sizeof(int));
-    cudaMalloc(&d_num_in, sizeof(int));
-    cudaMalloc(&d_swap_flag, sizeof(int));
+    cudaMalloc(&d_q_size, sizeof(int));
     cudaMalloc(&d_contradiction, sizeof(int));
 
     cudaMemset(d_contradiction, 0, sizeof(int));
-    cudaMemset(d_num_out, 0, sizeof(int));
-    cudaMemset(d_num_in, 0, sizeof(int));
+    cudaMemset(d_q_size, 0, sizeof(int));
     
-    cudaMemset(d_swap_flag, 0, sizeof(int));
     
     const int TILE_SIZE = 16;
     const int THREADS_PER_BLOCK = 256; 
@@ -336,11 +306,8 @@ int host(DIMACSInput& input, ReverseTables& revt) {
         &d_updated_rules,
         &input.num_rules, 
         &d_contradiction,
-        &d_queue_0, 
-        &d_queue_1, 
-        &d_num_out, 
-        &d_num_in, 
-        &d_swap_flag
+        &d_queue, 
+        &d_q_size, 
     };
 
     cudaLaunchCooperativeKernel(
@@ -370,12 +337,9 @@ int host(DIMACSInput& input, ReverseTables& revt) {
     cudaFree(d_S_sat);
     cudaFree(d_S_undef);
     cudaFree(d_updated_rules);
-    cudaFree(d_queue_0);
-    cudaFree(d_queue_1);
-    cudaFree(d_num_out);
-    cudaFree(d_num_in);
+    cudaFree(d_queue);
+    cudaFree(d_q_size);
     cudaFree(d_contradiction);
-    cudaFree(d_swap_flag);
 
     return h_contradiction;
 }

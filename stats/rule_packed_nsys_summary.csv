@@ -1,0 +1,127 @@
+Test File,Time (%),Total Time (ns),Instances,Avg (ns),Med (ns),Min (ns),Max (ns),StdDev (ns),Kernel Name
+sudoku_9x9_0.in,100.0,37120,10,3712.0,3616.0,3520,4256,222.2,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int *, int *)"
+sudoku_9x9_0.in,0.057,6,0.010,0.003,0.003,0.023,0.011,[CUDA memcpy Host-to-Device]
+sudoku_9x9_0.in,0.003,21,0.000,0.000,0.000,0.003,0.001,[CUDA memcpy Device-to-Host]
+sudoku_9x9_0.in,0.000,11,0.000,0.000,0.000,0.000,0.000,[CUDA memset]
+sudoku_9x9_0.in,99.5,161746672,8,20218334.0,3448.5,2722,161719536,57175119.7,cudaMalloc
+sudoku_9x9_0.in,0.2,270243,27,10009.0,8622.0,4434,28378,5457.6,cudaMemcpy
+sudoku_9x9_0.in,0.1,242623,10,24262.3,4245.0,3759,203099,62840.9,cudaLaunchKernel
+sudoku_9x9_0.in,0.1,118991,8,14873.9,2544.0,1905,98433,33789.8,cudaFree
+sudoku_9x9_0.in,0.0,63226,10,6322.6,5750.0,5558,11417,1796.8,cudaDeviceSynchronize
+sudoku_9x9_0.in,0.0,52203,1,52203.0,52203.0,52203,52203,0.0,cuLibraryLoadData
+sudoku_9x9_0.in,0.0,37810,11,3437.3,2688.0,2546,7782,1613.1,cudaMemset
+sudoku_9x9_0.in,0.0,4030,1,4030.0,4030.0,4030,4030,0.0,cuModuleGetLoadingMode
+sudoku_9x9_0.in,0.0,1989,10,198.9,105.0,102,775,219.0,cuKernelGetName
+sudoku_9x9_0.in,0.0,327,1,327.0,327.0,327,327,0.0,cuLibraryGetKernel
+sudoku_9x9_1.in,100.0,26400,7,3771.4,3712.0,3520,4288,256.3,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int *, int *)"
+sudoku_9x9_1.in,0.057,6,0.010,0.003,0.003,0.023,0.011,[CUDA memcpy Host-to-Device]
+sudoku_9x9_1.in,0.003,15,0.000,0.000,0.000,0.003,0.001,[CUDA memcpy Device-to-Host]
+sudoku_9x9_1.in,0.000,8,0.000,0.000,0.000,0.000,0.000,[CUDA memset]
+sudoku_9x9_1.in,99.6,164071249,8,20508906.1,3156.5,1973,164046006,57997746.7,cudaMalloc
+sudoku_9x9_1.in,0.1,218149,21,10388.0,8858.0,4420,27599,5948.7,cudaMemcpy
+sudoku_9x9_1.in,0.1,208912,7,29844.6,4256.0,3825,182427,67286.9,cudaLaunchKernel
+sudoku_9x9_1.in,0.1,123430,8,15428.8,2496.5,1925,102902,35373.4,cudaFree
+sudoku_9x9_1.in,0.0,48176,1,48176.0,48176.0,48176,48176,0.0,cuLibraryLoadData
+sudoku_9x9_1.in,0.0,44809,7,6401.3,5675.0,5627,10119,1649.8,cudaDeviceSynchronize
+sudoku_9x9_1.in,0.0,29029,8,3628.6,2708.5,2555,7929,1831.8,cudaMemset
+sudoku_9x9_1.in,0.0,3847,1,3847.0,3847.0,3847,3847,0.0,cuModuleGetLoadingMode
+sudoku_9x9_1.in,0.0,1373,7,196.1,117.0,103,448,148.2,cuKernelGetName
+sudoku_9x9_1.in,0.0,500,1,500.0,500.0,500,500,0.0,cuLibraryGetKernel
+sudoku_9x9_2.in,100.0,22623,6,3770.5,3728.0,3487,4256,287.4,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int *, int *)"
+sudoku_9x9_2.in,0.057,6,0.010,0.003,0.003,0.023,0.011,[CUDA memcpy Host-to-Device]
+sudoku_9x9_2.in,0.003,13,0.000,0.000,0.000,0.003,0.001,[CUDA memcpy Device-to-Host]
+sudoku_9x9_2.in,0.000,7,0.000,0.000,0.000,0.000,0.000,[CUDA memset]
+sudoku_9x9_2.in,99.6,162608109,8,20326013.6,3431.5,2598,162583717,57480792.4,cudaMalloc
+sudoku_9x9_2.in,0.1,206918,6,34486.3,4354.5,3617,184487,73491.0,cudaLaunchKernel
+sudoku_9x9_2.in,0.1,195602,19,10294.8,8672.0,4246,26416,5920.3,cudaMemcpy
+sudoku_9x9_2.in,0.1,116215,8,14526.9,2488.5,1976,95533,32759.1,cudaFree
+sudoku_9x9_2.in,0.0,50881,1,50881.0,50881.0,50881,50881,0.0,cuLibraryLoadData
+sudoku_9x9_2.in,0.0,39079,6,6513.2,5809.5,5634,10019,1724.7,cudaDeviceSynchronize
+sudoku_9x9_2.in,0.0,24553,7,3507.6,2602.0,2463,7735,1945.9,cudaMemset
+sudoku_9x9_2.in,0.0,3259,1,3259.0,3259.0,3259,3259,0.0,cuModuleGetLoadingMode
+sudoku_9x9_2.in,0.0,1300,6,216.7,122.0,114,543,173.1,cuKernelGetName
+sudoku_9x9_2.in,0.0,383,1,383.0,383.0,383,383,0.0,cuLibraryGetKernel
+sudoku_9x9_3.in,100.0,29792,8,3724.0,3648.0,3520,4160,204.5,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int *, int *)"
+sudoku_9x9_3.in,0.057,6,0.010,0.003,0.003,0.023,0.011,[CUDA memcpy Host-to-Device]
+sudoku_9x9_3.in,0.003,17,0.000,0.000,0.000,0.003,0.001,[CUDA memcpy Device-to-Host]
+sudoku_9x9_3.in,0.000,9,0.000,0.000,0.000,0.000,0.000,[CUDA memset]
+sudoku_9x9_3.in,99.5,163256758,8,20407094.8,3490.5,2753,163228909,57708727.7,cudaMalloc
+sudoku_9x9_3.in,0.2,256107,23,11135.1,8753.0,4391,29769,7019.9,cudaMemcpy
+sudoku_9x9_3.in,0.1,222670,8,27833.8,4242.5,3911,191123,65984.7,cudaLaunchKernel
+sudoku_9x9_3.in,0.1,121301,8,15162.6,2561.0,1933,99974,34298.7,cudaFree
+sudoku_9x9_3.in,0.0,54494,1,54494.0,54494.0,54494,54494,0.0,cuLibraryLoadData
+sudoku_9x9_3.in,0.0,51772,8,6471.5,5801.5,5679,10738,1733.9,cudaDeviceSynchronize
+sudoku_9x9_3.in,0.0,30797,9,3421.9,2817.0,2527,7977,1758.1,cudaMemset
+sudoku_9x9_3.in,0.0,3873,1,3873.0,3873.0,3873,3873,0.0,cuModuleGetLoadingMode
+sudoku_9x9_3.in,0.0,1419,8,177.4,112.0,107,460,129.5,cuKernelGetName
+sudoku_9x9_3.in,0.0,356,1,356.0,356.0,356,356,0.0,cuLibraryGetKernel
+sudoku_9x9_4.in,100.0,26400,7,3771.4,3648.0,3552,4288,274.9,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int *, int *)"
+sudoku_9x9_4.in,0.057,6,0.010,0.003,0.003,0.023,0.011,[CUDA memcpy Host-to-Device]
+sudoku_9x9_4.in,0.003,15,0.000,0.000,0.000,0.003,0.001,[CUDA memcpy Device-to-Host]
+sudoku_9x9_4.in,0.000,8,0.000,0.000,0.000,0.000,0.000,[CUDA memset]
+sudoku_9x9_4.in,99.6,158144703,8,19768087.9,3699.5,2551,158119293,55902328.8,cudaMalloc
+sudoku_9x9_4.in,0.1,223410,7,31915.7,4380.0,3829,194292,71609.6,cudaLaunchKernel
+sudoku_9x9_4.in,0.1,216052,21,10288.2,8698.0,4422,28271,6105.7,cudaMemcpy
+sudoku_9x9_4.in,0.1,119370,8,14921.3,2549.0,1942,98561,33824.7,cudaFree
+sudoku_9x9_4.in,0.0,47337,1,47337.0,47337.0,47337,47337,0.0,cuLibraryLoadData
+sudoku_9x9_4.in,0.0,45202,7,6457.4,5806.0,5498,10726,1888.9,cudaDeviceSynchronize
+sudoku_9x9_4.in,0.0,27327,8,3415.9,2671.0,2489,7650,1767.7,cudaMemset
+sudoku_9x9_4.in,0.0,3718,1,3718.0,3718.0,3718,3718,0.0,cuModuleGetLoadingMode
+sudoku_9x9_4.in,0.0,1407,7,201.0,100.0,97,504,164.1,cuKernelGetName
+sudoku_9x9_4.in,0.0,480,1,480.0,480.0,480,480,0.0,cuLibraryGetKernel
+sudoku_9x9_5.in,100.0,43968,12,3664.0,3616.0,3424,4256,208.9,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int *, int *)"
+sudoku_9x9_5.in,0.057,6,0.010,0.003,0.003,0.023,0.011,[CUDA memcpy Host-to-Device]
+sudoku_9x9_5.in,0.003,25,0.000,0.000,0.000,0.003,0.001,[CUDA memcpy Device-to-Host]
+sudoku_9x9_5.in,0.000,13,0.000,0.000,0.000,0.000,0.000,[CUDA memset]
+sudoku_9x9_5.in,99.5,163397906,8,20424738.3,3589.5,2710,163372898,57759778.9,cudaMalloc
+sudoku_9x9_5.in,0.2,299904,31,9674.3,8692.0,4341,26991,4748.9,cudaMemcpy
+sudoku_9x9_5.in,0.2,246571,12,20547.6,4307.5,3698,198010,55891.9,cudaLaunchKernel
+sudoku_9x9_5.in,0.1,114990,8,14373.8,2607.0,1943,94099,32240.2,cudaFree
+sudoku_9x9_5.in,0.0,73340,12,6111.7,5685.0,5456,10613,1425.9,cudaDeviceSynchronize
+sudoku_9x9_5.in,0.0,48593,1,48593.0,48593.0,48593,48593,0.0,cuLibraryLoadData
+sudoku_9x9_5.in,0.0,40480,13,3113.8,2590.0,2353,8080,1550.4,cudaMemset
+sudoku_9x9_5.in,0.0,3773,1,3773.0,3773.0,3773,3773,0.0,cuModuleGetLoadingMode
+sudoku_9x9_5.in,0.0,1920,12,160.0,106.0,104,511,131.1,cuKernelGetName
+sudoku_9x9_5.in,0.0,376,1,376.0,376.0,376,376,0.0,cuLibraryGetKernel
+sudoku_9x9_6.in,100.0,22911,6,3818.5,3711.5,3584,4224,280.3,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int *, int *)"
+sudoku_9x9_6.in,0.057,6,0.010,0.003,0.003,0.023,0.011,[CUDA memcpy Host-to-Device]
+sudoku_9x9_6.in,0.003,13,0.000,0.000,0.000,0.003,0.001,[CUDA memcpy Device-to-Host]
+sudoku_9x9_6.in,0.000,7,0.000,0.000,0.000,0.000,0.000,[CUDA memset]
+sudoku_9x9_6.in,99.6,158163278,8,19770409.8,3471.0,2620,158138946,55909331.6,cudaMalloc
+sudoku_9x9_6.in,0.1,209890,6,34981.7,4311.0,3644,186514,74244.1,cudaLaunchKernel
+sudoku_9x9_6.in,0.1,201099,19,10584.2,8841.0,4416,27990,6259.6,cudaMemcpy
+sudoku_9x9_6.in,0.1,120035,8,15004.4,2513.5,1968,99424,34136.6,cudaFree
+sudoku_9x9_6.in,0.0,48659,1,48659.0,48659.0,48659,48659,0.0,cuLibraryLoadData
+sudoku_9x9_6.in,0.0,45865,6,7644.2,6007.0,5529,12390,2884.5,cudaDeviceSynchronize
+sudoku_9x9_6.in,0.0,25378,7,3625.4,2716.0,2554,7954,1991.7,cudaMemset
+sudoku_9x9_6.in,0.0,3675,1,3675.0,3675.0,3675,3675,0.0,cuModuleGetLoadingMode
+sudoku_9x9_6.in,0.0,1337,6,222.8,110.5,98,566,195.8,cuKernelGetName
+sudoku_9x9_6.in,0.0,399,1,399.0,399.0,399,399,0.0,cuLibraryGetKernel
+sudoku_9x9_7.in,100.0,29792,8,3724.0,3680.0,3520,4160,195.0,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int *, int *)"
+sudoku_9x9_7.in,0.057,6,0.010,0.003,0.003,0.023,0.011,[CUDA memcpy Host-to-Device]
+sudoku_9x9_7.in,0.003,17,0.000,0.000,0.000,0.003,0.001,[CUDA memcpy Device-to-Host]
+sudoku_9x9_7.in,0.000,9,0.000,0.000,0.000,0.000,0.000,[CUDA memset]
+sudoku_9x9_7.in,99.6,160885801,8,20110725.1,3524.5,2552,160861705,56871984.2,cudaMalloc
+sudoku_9x9_7.in,0.1,230407,23,10017.7,8625.0,4159,27415,5678.1,cudaMemcpy
+sudoku_9x9_7.in,0.1,217971,8,27246.4,4354.5,4042,184300,63466.3,cudaLaunchKernel
+sudoku_9x9_7.in,0.1,115881,8,14485.1,2482.5,1964,95086,32595.4,cudaFree
+sudoku_9x9_7.in,0.0,49911,8,6238.9,5759.5,5520,9874,1476.3,cudaDeviceSynchronize
+sudoku_9x9_7.in,0.0,45433,1,45433.0,45433.0,45433,45433,0.0,cuLibraryLoadData
+sudoku_9x9_7.in,0.0,29524,9,3280.4,2618.0,2452,7724,1712.3,cudaMemset
+sudoku_9x9_7.in,0.0,3684,1,3684.0,3684.0,3684,3684,0.0,cuModuleGetLoadingMode
+sudoku_9x9_7.in,0.0,1400,8,175.0,104.5,101,521,149.1,cuKernelGetName
+sudoku_9x9_7.in,0.0,404,1,404.0,404.0,404,404,0.0,cuLibraryGetKernel
+sudoku_9x9_8.in,100.0,29888,8,3736.0,3712.0,3520,4192,217.5,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int *, int *)"
+sudoku_9x9_8.in,0.057,6,0.010,0.003,0.003,0.023,0.011,[CUDA memcpy Host-to-Device]
+sudoku_9x9_8.in,0.003,17,0.000,0.000,0.000,0.003,0.001,[CUDA memcpy Device-to-Host]
+sudoku_9x9_8.in,0.000,9,0.000,0.000,0.000,0.000,0.000,[CUDA memset]
+sudoku_9x9_8.in,99.6,162726197,8,20340774.6,3397.0,2665,162698691,57521284.6,cudaMalloc
+sudoku_9x9_8.in,0.1,240252,23,10445.7,8641.0,4213,26893,5716.5,cudaMemcpy
+sudoku_9x9_8.in,0.1,222726,8,27840.8,4062.5,3541,193056,66762.9,cudaLaunchKernel
+sudoku_9x9_8.in,0.1,118330,8,14791.3,2672.5,1952,97299,33363.9,cudaFree
+sudoku_9x9_8.in,0.0,51864,8,6483.0,5718.0,5604,11412,1999.0,cudaDeviceSynchronize
+sudoku_9x9_8.in,0.0,51804,1,51804.0,51804.0,51804,51804,0.0,cuLibraryLoadData
+sudoku_9x9_8.in,0.0,30918,9,3435.3,2674.0,2486,8527,1950.3,cudaMemset
+sudoku_9x9_8.in,0.0,3789,1,3789.0,3789.0,3789,3789,0.0,cuModuleGetLoadingMode
+sudoku_9x9_8.in,0.0,1399,8,174.9,110.0,106,465,131.8,cuKernelGetName
+sudoku_9x9_8.in,0.0,326,1,326.0,326.0,326,326,0.0,cuLibraryGetKernel

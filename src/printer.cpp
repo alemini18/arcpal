@@ -14,12 +14,12 @@ void print_structure(DIMACSInput& data, bool is_contradiction) {
     cout << "s SUCCESS\n";
     cout << "v ";
         
-    for (int atom = 1; atom <= data.num_atoms; atom++) {
-        int val = data.M[atom];
+    for (int i = 1; i <= data.num_atoms; i++) {
+        int val = data.M[i];
         if (val == TRUE) {
-            cout << atom << " ";
+            cout << i << " ";
         } else if (val == FALSE) {
-            cout << -atom << " ";
+            cout << -i << " ";
         }
     }
     cout << "0" << endl;
@@ -43,11 +43,13 @@ void print_structure(DIMACSInput& data, bool is_contradiction) {
             int lit_sat = (lit > 0) ? TRUE : FALSE; 
             int lit_not = (lit > 0) ? FALSE : TRUE;
             
-            int lit_val = (data.M[atom] == TRUE) ? lit_sat : lit_not;
-            if (lit_val == TRUE) {
-                S_sat += weight;
-            } else if (lit_val == UNDEF) {
+            if(data.M[atom] == UNDEF){
                 S_undef += weight;
+            } else {
+                int lit_val = (data.M[atom] == TRUE) ? lit_sat : lit_not;
+                if (lit_val == TRUE) {
+                    S_sat += weight;
+                }
             }
         }
 
@@ -56,7 +58,9 @@ void print_structure(DIMACSInput& data, bool is_contradiction) {
         int h_sat = (head > 0) ? TRUE : FALSE; 
         int h_not = (head > 0) ? FALSE : TRUE;
 
-        int head_val = (data.M[h_atom] == TRUE) ? h_sat : h_not;
+        int head_val;
+        if(data.M[h_atom] == UNDEF) head_val = UNDEF;
+        else head_val = (data.M[h_atom] == TRUE) ? h_sat : h_not;
         
         int body_val = UNDEF;
         if (S_sat >= bound) {

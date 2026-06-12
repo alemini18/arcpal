@@ -326,6 +326,6 @@ int main() {
     build_reverse_tables(input, revt);
     }
     bool contradiction = host(input,revt);
-    print_structure(input);
+    print_structure(input, h_contradiction);
 
 }

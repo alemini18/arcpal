@@ -11,7 +11,7 @@ namespace cg = cooperative_groups;
 
 using namespace std;
 
-__device__ void atomicAssignAndQueue(int* M, int atom_id, int val, int* contradiction, int* queue_out, int* num_out) {
+__device__ void atomic_assign_and_queue(int* M, int atom_id, int val, int* contradiction, int* queue_out, int* num_out) {
     
     int old_val = atomicCAS(&M[atom_id], UNDEF, val);
     
@@ -143,9 +143,9 @@ __global__ void deduce_kernel(
 
     if (tile.thread_rank() == 0) {
         if (S_sat >= B) { 
-            atomicAssignAndQueue(M, h_atom, h_val, contradiction, queue_out, num_out);
+            atomic_assign_and_queue(M, h_atom, h_val, contradiction, queue_out, num_out);
         } else if (S_max < B) { 
-            atomicAssignAndQueue(M, h_atom, h_not_val, contradiction, queue_out, num_out);
+            atomic_assign_and_queue(M, h_atom, h_not_val, contradiction, queue_out, num_out);
         }
         h_val = M[h_atom];
     }
@@ -167,11 +167,11 @@ __global__ void deduce_kernel(
             if (M[atom] == UNDEF) {
                 if (h_sat) { 
                     if (S_max - weight < B) { 
-                        atomicAssignAndQueue(M, atom, lit_val, contradiction, queue_out, num_out);
+                        atomic_assign_and_queue(M, atom, lit_val, contradiction, queue_out, num_out);
                     }
                 } else { 
                     if (S_sat + weight >= B) { 
-                        atomicAssignAndQueue(M, atom, lit_not_val, contradiction, queue_out, num_out);
+                        atomic_assign_and_queue(M, atom, lit_not_val, contradiction, queue_out, num_out);
                     }
                 }
             }

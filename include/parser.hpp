@@ -1,4 +1,3 @@
-#pragma once
 #ifndef DIMACS_PARSER_HPP
 #define DIMACS_PARSER_HPP
 

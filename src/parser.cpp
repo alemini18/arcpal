@@ -1,6 +1,5 @@
 #include "../include/parser.hpp"
 #include <iostream>
-#include <cmath>
 
 using namespace std;
 

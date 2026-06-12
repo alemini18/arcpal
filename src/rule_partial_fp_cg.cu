@@ -8,7 +8,7 @@
 namespace cg = cooperative_groups;
 using namespace std;
 
-__device__ void atomicAssign(int* M, int atom_id, int val, int* contradiction, int* changed) {
+__device__ void atomic_assign(int* M, int atom_id, int val, int* contradiction, int* changed) {
     int old_val = atomicCAS(&M[atom_id], UNDEF, val);
     if (old_val == UNDEF) {
         *changed = 1;
@@ -132,9 +132,9 @@ __global__ void kernel(
                 // Body -> Head
                 if (tile.thread_rank() == 0) {
                     if (S_sat >= B) { 
-                        atomicAssign(M_local, h_atom, h_val, local_contradiction, local_changed);
+                        atomic_assign(M_local, h_atom, h_val, local_contradiction, local_changed);
                     } else if (S_max < B) { 
-                        atomicAssign(M_local, h_atom, h_not_val, local_contradiction, local_changed);
+                        atomic_assign(M_local, h_atom, h_not_val, local_contradiction, local_changed);
                     }
                     h_assigned = M_local[h_atom];
                 }
@@ -157,11 +157,11 @@ __global__ void kernel(
                         if (M_local[atom] == UNDEF) {
                             if (h_sat) { 
                                 if (S_max - weight < B) { 
-                                    atomicAssign(M_local, atom, lit_val, local_contradiction, local_changed);
+                                    atomic_assign(M_local, atom, lit_val, local_contradiction, local_changed);
                                 }
                             } else { 
                                 if (S_sat + weight >= B) { 
-                                    atomicAssign(M_local, atom, lit_not_val, local_contradiction, local_changed);
+                                    atomic_assign(M_local, atom, lit_not_val, local_contradiction, local_changed);
                                 }
                             }
                         }
@@ -177,7 +177,7 @@ __global__ void kernel(
 
         for (int i = block.thread_rank(); i < num_atoms + 1; i += block.size()) {
             if (M_local[i] != UNDEF) {
-                atomicAssign(M, i, M_local[i], contradiction, changed);
+                atomic_assign(M, i, M_local[i], contradiction, changed);
             }
         }
         grid.sync();
@@ -219,7 +219,7 @@ bool host(DIMACSInput& input) {
     int tiles_per_block = THREADS_PER_BLOCK / TILE_SIZE; 
     int blocks_per_grid = (input.num_rules + tiles_per_block - 1) / tiles_per_block;
 
-    int max_lits_per_block = tiles_per_block * TILE_SIZE; 
+    int max_lits_per_block = tiles_per_block * TILE_SIZE; // Assumo che non ci siano più di TILE_SIZE letterali per regola
     
     int max_shared_mem = input.M.size() + max_lits_per_block + max_lits_per_block + 2;
 
@@ -250,7 +250,7 @@ bool host(DIMACSInput& input) {
 
     cudaDeviceSynchronize();
 
-    int h_contradiction;
+    int h_contradiction = 2;
 
     cudaMemcpy(input.M.data(), d_M, input.M.size() * sizeof(int), cudaMemcpyDeviceToHost);
     cudaMemcpy(&h_contradiction, d_contradiction, sizeof(int), cudaMemcpyDeviceToHost);

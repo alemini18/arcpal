@@ -10,7 +10,7 @@
 namespace cg = cooperative_groups;
 
 
-__device__ void atomicAssignAndQueue(int* M, int atom, int val, int* contradiction, int* queue, int* q_size) {
+__device__ void atomic_assign_and_queue(int* M, int atom, int val, int* contradiction, int* queue, int* q_size) {
     int old_val = atomicCAS(&M[atom], UNDEF, val);
     if (old_val == UNDEF) {
         int idx = atomicAdd(q_size, 1);
@@ -135,9 +135,9 @@ __device__ void deduce_kernel(
 
     if (tile.thread_rank() == 0) {
         if (S_sat >= B) { 
-            atomicAssignAndQueue(M, h_atom, h_val, contradiction, queue, q_size);
+            atomic_assign_and_queue(M, h_atom, h_val, contradiction, queue, q_size);
         } else if (S_max < B) { 
-            atomicAssignAndQueue(M, h_atom, h_not_val, contradiction, queue, q_size);
+            atomic_assign_and_queue(M, h_atom, h_not_val, contradiction, queue, q_size);
         }
         h_val = M[h_atom];
     }
@@ -159,11 +159,11 @@ __device__ void deduce_kernel(
             if (M[atom] == UNDEF) {
                 if (h_sat) { 
                     if (S_max - weight < B) { 
-                        atomicAssignAndQueue(M, atom, lit_val, contradiction, queue, q_size);
+                        atomic_assign_and_queue(M, atom, lit_val, contradiction, queue, q_size);
                     }
                 } else { 
                     if (S_sat + weight >= B) { 
-                        atomicAssignAndQueue(M, atom, lit_not_val, contradiction, queue, q_size);
+                        atomic_assign_and_queue(M, atom, lit_not_val, contradiction, queue, q_size);
                     }
                 }
             }
@@ -318,7 +318,7 @@ int host(DIMACSInput& input, ReverseTables& revt) {
     );
     cudaDeviceSynchronize();
 
-    int h_contradiction = 0;
+    int h_contradiction = 2;
     cudaMemcpy(&h_contradiction, d_contradiction, sizeof(int), cudaMemcpyDeviceToHost);
     cudaMemcpy(input.M.data(), d_M, input.M.size() * sizeof(int), cudaMemcpyDeviceToHost);
 

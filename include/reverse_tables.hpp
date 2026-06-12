@@ -1,4 +1,3 @@
-#pragma once
 #ifndef REVERSE_TABLES
 #define REVERSE_TABLES
 

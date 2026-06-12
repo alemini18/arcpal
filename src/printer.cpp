@@ -4,9 +4,13 @@
 
 using namespace std;
 
-void print_structure(DIMACSInput& data, bool is_contradiction) {
+void print_structure(DIMACSInput& data, bool contradiction) {
 
-    if(is_contradiction){
+    if(contradiction >= 2){
+        cout << "s ERROR\n";
+        return; 
+    }
+    if(contradiction == 1){
         cout << "s CONTRADICTION\n";
         return;
     }

@@ -1,5 +1,4 @@
 #include <vector>
-#include <cmath>
 #include <cuda_runtime.h>
 #include <nvtx3/nvtx3.hpp>
 
@@ -10,7 +9,7 @@
 using namespace std;
 
 
-__device__ void atomicAssignAndQueue(int* M, int atom, int val, int* contradiction, int* queue_out, int* num_out) {
+__device__ void atomic_assign_and_queue(int* M, int atom, int val, int* contradiction, int* queue_out, int* num_out) {
     
     int old_val = atomicCAS(&M[atom], UNDEF, val);
     
@@ -151,9 +150,9 @@ __global__ void deduce_kernel(
 
     if (threadIdx.x == 0) {
         if (S_sat >= B) { 
-            atomicAssignAndQueue(M, h_atom, h_val, contradiction, queue_out, num_out);
+            atomic_assign_and_queue(M, h_atom, h_val, contradiction, queue_out, num_out);
         } else if (S_max < B) { 
-            atomicAssignAndQueue(M, h_atom, h_not_val, contradiction, queue_out, num_out);
+            atomic_assign_and_queue(M, h_atom, h_not_val, contradiction, queue_out, num_out);
         }
         h_val_shared = M[h_atom];
     }
@@ -175,11 +174,11 @@ __global__ void deduce_kernel(
             if (M[atom] == UNDEF) {
                 if (h_sat) { 
                     if (S_max - weight < B) { 
-                        atomicAssignAndQueue(M, atom, lit_val, contradiction, queue_out, num_out);
+                        atomic_assign_and_queue(M, atom, lit_val, contradiction, queue_out, num_out);
                     }
                 } else { 
                     if (S_sat + weight >= B) { 
-                        atomicAssignAndQueue(M, atom, lit_not_val, contradiction, queue_out, num_out);
+                        atomic_assign_and_queue(M, atom, lit_not_val, contradiction, queue_out, num_out);
                     }
                 }
             }
@@ -187,7 +186,7 @@ __global__ void deduce_kernel(
     }
 }
 
-bool host(DIMACSInput& input, ReverseTables& revt) {
+int host(DIMACSInput& input, ReverseTables& revt) {
     int *d_M, *d_head, *d_bound, *d_rule_offsets, *d_flat_lits, *d_flat_weights;
     int *d_atom_body_offsets, *d_atom_body_rules, *d_atom_body_lits, *d_atom_body_weights;
     int *d_atom_head_offsets, *d_atom_head_rules;
@@ -326,6 +325,6 @@ int main() {
     build_reverse_tables(input, revt);
     }
     bool contradiction = host(input,revt);
-    print_structure(input, h_contradiction);
+    print_structure(input, contradiction);
 
 }

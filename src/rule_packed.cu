@@ -6,7 +6,7 @@
 
 namespace cg = cooperative_groups;
 
-__device__ void atomicAssign(int* M, int atom_id, int val, int* contradiction, int* changed) {
+__device__ void atomic_assign(int* M, int atom_id, int val, int* contradiction, int* changed) {
     int old_val = atomicCAS(&M[atom_id], UNDEF, val);
     if (old_val == UNDEF) {
         *changed = 1;
@@ -69,9 +69,9 @@ __global__ void kernel(
     // Body -> Head
     if (tile.thread_rank() == 0) {
         if (S_sat >= B) { 
-            atomicAssign(M, h_atom, h_val, contradiction, changed);
+            atomic_assign(M, h_atom, h_val, contradiction, changed);
         } else if (S_max < B) { 
-            atomicAssign(M, h_atom, h_not_val, contradiction, changed);
+            atomic_assign(M, h_atom, h_not_val, contradiction, changed);
         }
         h_val = M[h_atom];
     }
@@ -95,11 +95,11 @@ __global__ void kernel(
             if (M[atom] == UNDEF) {
                 if (h_sat) { 
                     if (S_max - weight < B) { 
-                        atomicAssign(M, atom, lit_val, contradiction, changed);
+                        atomic_assign(M, atom, lit_val, contradiction, changed);
                     }
                 } else { 
                     if (S_sat + weight >= B) { 
-                        atomicAssign(M, atom, lit_not_val, contradiction, changed);
+                        atomic_assign(M, atom, lit_not_val, contradiction, changed);
                     }
                 }
             }

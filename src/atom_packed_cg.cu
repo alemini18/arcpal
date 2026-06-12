@@ -310,12 +310,16 @@ int host(DIMACSInput& input, ReverseTables& revt) {
         &d_q_size, 
     };
 
-    cudaLaunchCooperativeKernel(
+    cudaError_t launch_err = cudaLaunchCooperativeKernel(
         (void*)kernel<TILE_SIZE>, 
         blocks_per_grid, 
         THREADS_PER_BLOCK,
         kernel_args
     );
+
+    if (launch_err != cudaSuccess) {
+        cerr<<"Kernel Launch Error: "<<cudaGetErrorString(launch_err)<<endl;
+    }
     cudaDeviceSynchronize();
 
     int h_contradiction = 2;

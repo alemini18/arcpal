@@ -529,6 +529,49 @@ con la soluzione nota) e una raccolta sistematica di metriche di performance per
 viene poi aggregata (script \texttt{analyze.py}) nella tabella e nei grafici discussi nella sezione
 seguente.
 
+\subsection{Benchmark di scala: Sudoku grandi e regole lunghe}
+\label{sec:scaling}
+
+Il benchmark Sudoku $9\times9$ misura tutte le varianti su istanze di taglia fissa, e quindi non
+dice né come i tempi crescano al crescere della base di regole, né come cambi il confronto fra le
+strategie quando cambia la \emph{forma} delle regole. Per questo il progetto genera un secondo
+dataset, di tre famiglie, con lo script \texttt{tests/generate\_scaling.sh}:
+
+\begin{itemize}
+\item \textbf{sudoku}: le griglie $9\times9$, $16\times16$ e $25\times25$ prodotte da
+\texttt{tests/sudoku.py}, che ora riceve $K$ come parametro. Gli indizi non vengono più presi da un
+dataset esterno ma estratti da una soluzione valida costruita analiticamente
+($v(r,c) = \big(K\,(r \bmod K) + \lfloor r/K \rfloor + c\big) \bmod N + 1$), così l'istanza è
+consistente per costruzione a qualunque taglia; si passa da 648 a 5000 regole e, insieme, da 9 a 25
+letterali per regola.
+
+\item \textbf{synth\_L008} e \textbf{synth\_L200}: istanze sintetiche generate da
+\texttt{tests/synthetic.py} con 500, 1000, 2000, 4000 e 8000 regole. Ogni regola ha esattamente $L$
+letterali di peso 1 e bound $L$, quindi la testa è vera se e solo se lo è tutto il corpo; le regole
+sono disposte su $D$ strati, dove lo strato 0 legge solo atomi già assegnati e lo strato $d$ legge
+le teste dello strato $d-1$. Il punto fisso richiede così esattamente $D+1$ iterazioni qualunque sia
+il numero di regole, e le due famiglie differiscono in un solo parametro, i letterali per regola: 8
+in una e 200 nell'altra.
+\end{itemize}
+
+Le due famiglie sintetiche isolano l'ipotesi su cui si regge il packing a tile. Con
+$\texttt{TILE\_SIZE} = 16$ una regola da 8 letterali viene consumata da un tile in un solo passo, e
+metà del tile resta comunque inattiva; una regola da 200 letterali costringe invece ogni thread del
+tile a scorrere 13 letterali in sequenza, mentre la variante a blocco intero, che dedica 256 thread
+a una sola regola, la copre ancora in un passo solo. È il caso in cui il packing dovrebbe perdere
+contro il blocco intero, e il confronto fra i due pannelli sintetici della Figura~\ref{fig:scaling}
+serve esattamente a verificarlo.
+
+Lo script \texttt{run\_scaling.sh} esegue una variante su tutte le istanze con lo stesso schema di
+misura di \texttt{run\_tests.sh} (un giro di riscaldamento scartato, ripetizioni misurate, regione
+NVTX \texttt{fixpoint} isolata dal resto del programma), e in più registra per ogni istanza il
+numero di regole e di letterali, letti dall'istanza stessa e non dedotti dal nome del file. La
+correttezza è verificata confrontando l'output con quello della baseline seriale sulla stessa
+istanza, calcolato una volta sola e riusato da tutte le varianti. Le istanze che una variante
+rifiuta per limiti di taglia, cioè quelle su cui \texttt{rule\_partial\_fp\_cg} restituisce
+\texttt{s ERROR}, vengono contate come saltate e non entrano nelle misure. Lo script
+\texttt{analyze\_scaling.py} aggrega i CSV prodotti e disegna la figura.
+
 \section{Risultati delle performance}
 \label{sec:risultati}
 
@@ -609,6 +652,27 @@ costo dell'indirezione tramite le tabelle inverse e della gestione della coda di
 supera, su istanze di queste dimensioni, il risparmio di lavoro ridondante che lo schema
 atom-driven dovrebbe in teoria offrire rispetto al ricalcolo completo delle somme a ogni iterazione
 fatto dalle varianti rule-driven.
+
+\subsection{Scalabilità e forma delle regole}
+
+La Figura~\ref{fig:scaling} riporta il tempo di punto fisso in funzione del numero di regole sulle
+tre famiglie descritte nella Sezione~\ref{sec:scaling}, con assi logaritmici su entrambe le
+direzioni: una retta di pendenza 1 corrisponde a un costo lineare nel numero di regole. I due
+pannelli sintetici condividono forma e numero di iterazioni e differiscono solo nei letterali per
+regola, quindi la distanza fra le curve di una stessa variante nei due pannelli misura il costo del
+solo allungamento delle regole, a parità di tutto il resto.
+
+% Le curve vanno rigenerate con run_scaling.sh su ogni variante e poi analyze_scaling.py.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{tests/scaling/stats/scaling_comparison.png}
+\caption{Tempo della regione \texttt{fixpoint} in funzione del numero di regole, per famiglia di
+istanze. A sinistra i Sudoku, al centro le istanze sintetiche con 8 letterali per regola, a destra
+le stesse istanze con 200 letterali per regola.}
+\label{fig:scaling}
+\end{figure}
+
 
 \section{Conclusioni}
 

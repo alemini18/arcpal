@@ -8,3 +8,7 @@
 *build*
 sudoku.csv
 tests/sudoku/stats/*
+tests/scaling/input/*
+tests/scaling/output/*
+tests/scaling/results/*
+tests/scaling/stats/*.csv

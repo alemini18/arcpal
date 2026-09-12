@@ -236,7 +236,7 @@ bool host(DIMACSInput& input) {
         (void*)&d_contradiction
     };
 
-    cudaError_t launch_err =cudaLaunchCooperativeKernel(
+    cudaError_t launch_err = cudaLaunchCooperativeKernel(
         (const void*)kernel<TILE_SIZE>,
         dim3(blocks_per_grid), dim3(THREADS_PER_BLOCK),
         kernel_args,

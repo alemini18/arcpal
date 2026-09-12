@@ -125,9 +125,11 @@ __device__ void deduce_kernel(
     const int* flat_lits, const int* flat_weights,
     int* S_sat_global, int* S_undef_global, int* updated_rules,
     int* contradiction, int* queue, int* q_size,
-    int* h_val_shared
+    int* h_val_shared, int* contradiction_shared
 ) {
-    if (*contradiction) return;
+    if (threadIdx.x == 0) *contradiction_shared = *contradiction;
+    __syncthreads();
+    if (*contradiction_shared) return;
 
     if (updated_rules[rule_id] == 0) return;
     __syncthreads();
@@ -200,8 +202,7 @@ __global__ void kernel(
     cg::grid_group grid = cg::this_grid();
     
     __shared__ int h_val_shared;
-    
-    if (*contradiction) return;
+    __shared__ int contradiction_shared;
 
     while (true) {
 
@@ -210,7 +211,7 @@ __global__ void kernel(
             deduce_kernel(rule_id, M, head, bound, rule_offsets,
             flat_lits, flat_weights, S_sat, S_undef,
             updated_rules, contradiction,
-            queue, q_size, &h_val_shared);
+            queue, q_size, &h_val_shared, &contradiction_shared);
         }
 
         grid.sync();

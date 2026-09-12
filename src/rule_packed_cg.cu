@@ -125,7 +125,7 @@ __global__ void kernel(
 }
 }
 
-bool host(DIMACSInput& input) {
+int host(DIMACSInput& input) {
     int *d_M, *d_head, *d_bound, *d_rule_offsets, *d_flat_lits, *d_flat_weights;
     int *d_changed, *d_contradiction;
 
@@ -212,7 +212,7 @@ bool host(DIMACSInput& input) {
 
 int main() {
     DIMACSInput input = parse_dimacs_input();
-    bool contradiction = host(input);
+    int contradiction = host(input);
     print_structure(input,contradiction);
 
 }

@@ -111,7 +111,8 @@ __device__ void deduce_kernel(
     cg::thread_block block = cg::this_thread_block();
     cg::thread_block_tile<TILE_SIZE> tile = cg::tiled_partition<TILE_SIZE>(block);
 
-    if (*contradiction) return;
+    int local_contradiction = (tile.thread_rank() == 0) ? *contradiction : 0;
+    if (tile.shfl(local_contradiction, 0)) return;
 
     if (updated_rules[rule_id] == 0) return;
     tile.sync();
@@ -185,9 +186,7 @@ __global__ void kernel(
     cg::grid_group grid = cg::this_grid();
     cg::thread_block block = cg::this_thread_block();
     cg::thread_block_tile<TILE_SIZE> tile = cg::tiled_partition<TILE_SIZE>(block);
-        
-    if (*contradiction) return;
-    
+
     int total_tiles = gridDim.x * tile.meta_group_size();
 
     while (true) {

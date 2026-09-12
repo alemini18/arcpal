@@ -23,13 +23,14 @@ __global__ void kernel(
     const int* flat_lits, const int* flat_weights,
     int num_rules, int* changed, int* contradiction
 ) {
-    if (*contradiction) return;
-
     cg::thread_block block = cg::this_thread_block();
     cg::thread_block_tile<TILE_SIZE> tile = cg::tiled_partition<TILE_SIZE>(block);
 
     int rule_id = (blockIdx.x * tile.meta_group_size()) + tile.meta_group_rank();
     if (rule_id >= num_rules) return;
+
+    int local_contradiction = (tile.thread_rank() == 0) ? *contradiction : 0;
+    if (tile.shfl(local_contradiction, 0)) return;
 
     int start_idx = rule_offsets[rule_id];
     int end_idx = rule_offsets[rule_id + 1];
@@ -107,7 +108,7 @@ __global__ void kernel(
     }
 }
 
-bool host(DIMACSInput& input) {
+int host(DIMACSInput& input) {
     int *d_M, *d_head, *d_bound, *d_rule_offsets, *d_flat_lits, *d_flat_weights;
     int *d_changed, *d_contradiction;
 
@@ -172,7 +173,7 @@ bool host(DIMACSInput& input) {
 
 int main() {
     DIMACSInput input = parse_dimacs_input();
-    bool contradiction = host(input);
+    int contradiction = host(input);
     print_structure(input,contradiction);
 
 }

@@ -4,7 +4,7 @@
 
 using namespace std;
 
-void print_structure(DIMACSInput& data, bool contradiction) {
+void print_structure(DIMACSInput& data, int contradiction) {
 
     if(contradiction >= 2){
         cout << "s ERROR\n";
@@ -12,10 +12,9 @@ void print_structure(DIMACSInput& data, bool contradiction) {
     }
     if(contradiction == 1){
         cout << "s CONTRADICTION\n";
-        return;
+    }else{
+        cout << "s SUCCESS\n";
     }
-
-    cout << "s SUCCESS\n";
     cout << "v ";
         
     for (int i = 1; i <= data.num_atoms; i++) {
@@ -74,11 +73,11 @@ void print_structure(DIMACSInput& data, bool contradiction) {
         }
 
         if (head_val == UNDEF || body_val == UNDEF) {
-            undef_rules.push_back(r);
+            undef_rules.push_back(r + 1);
         } else if (head_val == body_val) {
-            cout << r << " ";
+            cout << r + 1 << " ";
         } else {
-            cout << -r << " ";
+            cout << -(r + 1) << " ";
         }
     }
     cout << "0" << endl;

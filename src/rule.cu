@@ -19,7 +19,12 @@ __global__ void kernel(
     int num_rules, int* changed, int* contradiction
 ) {
     int rule_id = blockIdx.x;
-    if (rule_id >= num_rules || *contradiction) return;
+    if (rule_id >= num_rules) return;
+
+    __shared__ int contradiction_shared;
+    if (threadIdx.x == 0) contradiction_shared = *contradiction;
+    __syncthreads();
+    if (contradiction_shared) return;
 
     int start_idx = rule_offsets[rule_id];
     int end_idx = rule_offsets[rule_id + 1];
@@ -110,7 +115,7 @@ __global__ void kernel(
 }
 
 
-bool host(DIMACSInput& input) {
+int host(DIMACSInput& input) {
     int *d_M, *d_head, *d_bound, *d_rule_offsets, *d_flat_lits, *d_flat_weights;
     int *d_changed, *d_contradiction;
 
@@ -170,7 +175,7 @@ bool host(DIMACSInput& input) {
 
 int main() {
     DIMACSInput input = parse_dimacs_input();
-    bool contradiction = host(input);
+    int contradiction = host(input);
     print_structure(input,contradiction);
 
     return 0;

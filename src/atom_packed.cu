@@ -119,7 +119,10 @@ __global__ void deduce_kernel(
     cg::thread_block_tile<TILE_SIZE> tile = cg::tiled_partition<TILE_SIZE>(block);
 
     int rule_id = (blockIdx.x * tile.meta_group_size()) + tile.meta_group_rank();
-    if (rule_id >= num_rules || *contradiction) return;
+    if (rule_id >= num_rules) return;
+
+    int local_contradiction = (tile.thread_rank() == 0) ? *contradiction : 0;
+    if (tile.shfl(local_contradiction, 0)) return;
 
     if (updated_rules[rule_id] == 0) return;
     tile.sync();

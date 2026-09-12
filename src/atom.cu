@@ -125,8 +125,13 @@ __global__ void deduce_kernel(
 ) {
     int rule_id = blockIdx.x;
     __shared__ int h_val_shared;
+    __shared__ int contradiction_shared;
     
-    if (rule_id >= num_rules || *contradiction) return;
+    if (rule_id >= num_rules) return;
+
+    if (threadIdx.x == 0) contradiction_shared = *contradiction;
+    __syncthreads();
+    if (contradiction_shared) return;
 
     if (updated_rules[rule_id] == 0) return;
     __syncthreads();
@@ -324,7 +329,7 @@ int main() {
     nvtx3::scoped_range marker("build_reverse_tables");
     build_reverse_tables(input, revt);
     }
-    bool contradiction = host(input,revt);
+    int contradiction = host(input,revt);
     print_structure(input, contradiction);
 
 }

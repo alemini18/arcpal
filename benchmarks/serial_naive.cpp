@@ -4,6 +4,12 @@
 
 using namespace std;
 
+int lit_value(int m_val, int lit) {
+    if (m_val == UNDEF) return UNDEF;
+    if (lit > 0) return m_val;
+    return (m_val == TRUE) ? FALSE : TRUE;
+}
+
 bool propagate_rule(DIMACSInput& data, int rule_idx, bool& contradiction) {
     int head = data.head[rule_idx];
     int bound = data.bound[rule_idx];
@@ -17,7 +23,7 @@ bool propagate_rule(DIMACSInput& data, int rule_idx, bool& contradiction) {
         int lit = data.flat_lits[j];
         int weight = data.flat_weights[j];
         int atom = abs(lit);
-        int lit_val = (lit > 0) ? data.M[atom] : -data.M[atom];
+        int lit_val = lit_value(data.M[atom], lit);
 
         if (lit_val == TRUE) {
             S_sat += weight;
@@ -29,7 +35,7 @@ bool propagate_rule(DIMACSInput& data, int rule_idx, bool& contradiction) {
     bool changed = false;
 
     int h_atom = abs(head);
-    int h_val = (head > 0) ? data.M[h_atom] : -data.M[h_atom];
+    int h_val = lit_value(data.M[h_atom], head);
     
     if (S_sat >= bound) {
         if (h_val == UNDEF) {
@@ -56,7 +62,7 @@ bool propagate_rule(DIMACSInput& data, int rule_idx, bool& contradiction) {
             int lit = data.flat_lits[j];
             int weight = data.flat_weights[j];
             int atom = abs(lit);
-            int lit_val = (lit > 0) ? data.M[atom] : -data.M[atom];
+            int lit_val = lit_value(data.M[atom], lit);
 
             if (lit_val != UNDEF) continue;
 

@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cuda_runtime.h>
 #include <cooperative_groups.h>
+#include <nvtx3/nvtx3.hpp>
 
 #include "../include/parser.hpp" 
 #include "../include/printer.hpp" 
@@ -190,6 +191,45 @@ int host(DIMACSInput& input) {
     int *d_M, *d_head, *d_bound, *d_rule_offsets, *d_flat_lits, *d_flat_weights;
     int *d_changed, *d_contradiction;
 
+    cudaFree(0); // Crea il contesto CUDA prima della regione misurata
+
+    const int TILE_SIZE = 16; 
+    const int THREADS_PER_BLOCK = 256; 
+    
+    int tiles_per_block = THREADS_PER_BLOCK / TILE_SIZE; 
+    int blocks_per_grid = (input.num_rules + tiles_per_block - 1) / tiles_per_block;
+
+    int max_lits_per_block = 0;
+    for (int b = 0; b < blocks_per_grid; b++) {
+        int first_rule = b * tiles_per_block;
+        int last_rule = (first_rule + tiles_per_block < input.num_rules) ? first_rule + tiles_per_block : input.num_rules;
+        int lits = input.rule_offsets[last_rule] - input.rule_offsets[first_rule];
+        if (lits > max_lits_per_block) max_lits_per_block = lits;
+    }
+    
+    int max_shared_mem = input.M.size() + max_lits_per_block + max_lits_per_block + 2;
+
+    int device_id = 0;
+    cudaGetDevice(&device_id);
+
+    int max_shared_per_block;
+    cudaDeviceGetAttribute(&max_shared_per_block, cudaDevAttrMaxSharedMemoryPerBlock, device_id);
+    if (max_shared_mem * sizeof(int) > (size_t)max_shared_per_block) {
+        cerr<<"Input too large: "<<max_shared_mem * sizeof(int)<<" bytes of shared memory per block required, "<<max_shared_per_block<<" available"<<endl;
+        return 2;
+    }
+
+    int num_blocks_per_sm = 0;
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(&num_blocks_per_sm, (const void*)kernel<TILE_SIZE>, THREADS_PER_BLOCK, max_shared_mem * sizeof(int));
+    int num_SMs;
+    cudaDeviceGetAttribute(&num_SMs, cudaDevAttrMultiProcessorCount, device_id);
+
+    // Ogni blocco lavora su regole fisse, quindi la griglia non puo' essere ridotta ai blocchi residenti
+    if (blocks_per_grid > num_SMs * num_blocks_per_sm) {
+        cerr<<"Input too large: "<<blocks_per_grid<<" blocks required, "<<num_SMs * num_blocks_per_sm<<" co-resident blocks available"<<endl;
+        return 2;
+    }
+
     cudaMalloc(&d_M, input.M.size() * sizeof(int));
     cudaMemcpy(d_M, input.M.data(), input.M.size() * sizeof(int), cudaMemcpyHostToDevice);
 
@@ -213,16 +253,6 @@ int host(DIMACSInput& input) {
     cudaMemset(d_contradiction, 0, sizeof(int));
     cudaMemset(d_changed, 0, sizeof(int));
 
-    const int TILE_SIZE = 16; 
-    const int THREADS_PER_BLOCK = 256; 
-    
-    int tiles_per_block = THREADS_PER_BLOCK / TILE_SIZE; 
-    int blocks_per_grid = (input.num_rules + tiles_per_block - 1) / tiles_per_block;
-
-    int max_lits_per_block = tiles_per_block * TILE_SIZE; // Assumo che non ci siano più di TILE_SIZE letterali per regola
-    
-    int max_shared_mem = input.M.size() + max_lits_per_block + max_lits_per_block + 2;
-
     void* kernel_args[] = {
         (void*)&d_M,
         (void*)&d_head,
@@ -236,6 +266,8 @@ int host(DIMACSInput& input) {
         (void*)&d_contradiction
     };
 
+    {
+    nvtx3::scoped_range marker("fixpoint");
     cudaError_t launch_err = cudaLaunchCooperativeKernel(
         (const void*)kernel<TILE_SIZE>,
         dim3(blocks_per_grid), dim3(THREADS_PER_BLOCK),
@@ -249,6 +281,7 @@ int host(DIMACSInput& input) {
     }
 
     cudaDeviceSynchronize();
+    }
 
     int h_contradiction = 2;
 

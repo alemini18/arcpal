@@ -198,6 +198,8 @@ int host(DIMACSInput& input, ReverseTables& revt) {
     int *d_S_sat, *d_S_undef, *d_updated_rules;
     int *d_queue_in, *d_queue_out, *d_num_out, *d_contradiction;
 
+    cudaFree(0); // Crea il contesto CUDA prima della regione misurata
+
     cudaMalloc(&d_M, input.M.size() * sizeof(int));
     cudaMemcpy(d_M, input.M.data(), input.M.size() * sizeof(int), cudaMemcpyHostToDevice);
 
@@ -253,6 +255,8 @@ int host(DIMACSInput& input, ReverseTables& revt) {
     const int THREADS_PER_BLOCK = 256;
 
     int shared_mem_size = THREADS_PER_BLOCK * 2 * sizeof(int);
+    {
+    nvtx3::scoped_range marker("fixpoint");
     init_sums_kernel<<<input.num_rules, THREADS_PER_BLOCK,shared_mem_size>>>(
         d_M, d_rule_offsets, d_flat_lits, d_flat_weights, 
         d_S_sat, d_S_undef, d_updated_rules, input.num_rules
@@ -295,6 +299,7 @@ int host(DIMACSInput& input, ReverseTables& revt) {
 
         cudaMemcpy(&h_num_out, d_num_out, sizeof(int), cudaMemcpyDeviceToHost);
         cudaMemcpy(&h_contradiction, d_contradiction, sizeof(int), cudaMemcpyDeviceToHost);
+    }
     }
 
     cudaMemcpy(input.M.data(), d_M, input.M.size() * sizeof(int), cudaMemcpyDeviceToHost);

@@ -16,8 +16,12 @@ echo "================================================================="
 PASSED=0
 FAILED=0
 TOTAL=0
+
+# Ripetizioni per istanza, oltre a una di riscaldamento che viene scartata
+RUNS=5
+
 GLOBAL_CSV="tests/sudoku/stats/${exec_name}_nsys_summary.csv"
-echo "Test File,Time (%),Total Time (ns),Instances,Avg (ns),Med (ns),Min (ns),Max (ns),StdDev (ns),Kernel Name" > "$GLOBAL_CSV"
+echo "Test File,Run,Report,Time (%),Total Time (ns),Instances,Avg (ns),Med (ns),Min (ns),Max (ns),StdDev (ns),Name" > "$GLOBAL_CSV"
 
 python3 compact_to_dimacs.py "$2"
 
@@ -34,13 +38,29 @@ for test_file in tests/sudoku/input/*.in; do
     STATS_LOG="tests/sudoku/output/${filename}_nsys_stats.log"
     STATS_CSV="tests/sudoku/output/${filename}_nsys_stats.csv"
     
-    nsys profile -t nvtx,cuda --force-overwrite=true -o "$NSYS_REP" "$EXEC" < "$test_file" > "$TMP_OUT"
+    for run in $(seq 0 "$RUNS"); do
+
+        # Tempo di parete senza profiler, confrontabile con la baseline seriale
+        start_ns=$(date +%s%N)
+        "$EXEC" < "$test_file" > "$TMP_OUT"
+        end_ns=$(date +%s%N)
+
+        nsys profile -t nvtx,cuda --force-overwrite=true -o "$NSYS_REP" "$EXEC" < "$test_file" > "$TMP_OUT"
+
+        [ "$run" -eq 0 ] && continue
+
+        echo "$filename,$run,wall,100.0,$((end_ns - start_ns)),1,,,,,,total" >> "$GLOBAL_CSV"
+
+        for report in nvtx_pushpop_sum nvtx_sum cuda_gpu_kern_sum cuda_gpu_mem_time_sum cuda_api_sum; do
+            nsys stats --report="$report" --force-export=true --format=csv "${NSYS_REP}.nsys-rep" > "$STATS_CSV"
+
+            if [ -s "$STATS_CSV" ]; then
+                awk -v f="$filename" -v r="$run" -v rep="$report" -F',' '$1 ~ /^[0-9]+\.?[0-9]*$/ {print f "," r "," rep "," $0}' "$STATS_CSV" >> "$GLOBAL_CSV"
+            fi
+        done
+    done
+
     nsys stats --force-export=true "${NSYS_REP}.nsys-rep" >> "$STATS_LOG"
-    nsys stats --report=cuda_gpu_kern_sum,cuda_gpu_mem_size_sum,cuda_api_sum --force-export=true --format=csv "${NSYS_REP}.nsys-rep" > "$STATS_CSV"
-    
-    if [ -s "$STATS_CSV" ]; then
-        awk -v f="$filename" -F',' '$1 ~ /^[0-9]+\.?[0-9]*$/ {print f "," $0}' "$STATS_CSV" >> "$GLOBAL_CSV"
-    fi
     
     python3 dimacs_to_compact.py "$TMP_OUT" "$FINAL_OUT"
     

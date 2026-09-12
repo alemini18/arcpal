@@ -241,6 +241,8 @@ int host(DIMACSInput& input, ReverseTables& revt) {
     int *d_S_sat, *d_S_undef, *d_updated_rules;
     int *d_queue, *d_q_size, *d_contradiction;
 
+    cudaFree(0); // Crea il contesto CUDA prima della regione misurata
+
     cudaMalloc(&d_M, input.M.size() * sizeof(int));
     cudaMemcpy(d_M, input.M.data(), input.M.size() * sizeof(int), cudaMemcpyHostToDevice);
 
@@ -305,6 +307,8 @@ int host(DIMACSInput& input, ReverseTables& revt) {
     }
     if (blocks_per_grid == 0) blocks_per_grid = 1;
 
+    {
+    nvtx3::scoped_range marker("fixpoint");
     init_sums_kernel<<<input.num_rules, THREADS_PER_BLOCK, THREADS_PER_BLOCK * 2 * sizeof(int)>>>(
         d_M, d_rule_offsets, d_flat_lits, d_flat_weights, 
         d_S_sat, d_S_undef, d_updated_rules, input.num_rules
@@ -344,6 +348,7 @@ int host(DIMACSInput& input, ReverseTables& revt) {
         cerr<<"Kernel Launch Error: "<<cudaGetErrorString(launch_err)<<endl;
     }
     cudaDeviceSynchronize();
+    }
 
     int h_contradiction = 2;
     cudaMemcpy(&h_contradiction, d_contradiction, sizeof(int), cudaMemcpyDeviceToHost);

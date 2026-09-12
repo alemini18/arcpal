@@ -1,4 +1,5 @@
 #include <cuda_runtime.h>
+#include <nvtx3/nvtx3.hpp>
 
 #include "../include/parser.hpp" 
 #include "../include/printer.hpp" 
@@ -119,6 +120,8 @@ int host(DIMACSInput& input) {
     int *d_M, *d_head, *d_bound, *d_rule_offsets, *d_flat_lits, *d_flat_weights;
     int *d_changed, *d_contradiction;
 
+    cudaFree(0); // Crea il contesto CUDA prima della regione misurata
+
     cudaMalloc(&d_M, input.M.size() * sizeof(int));
     cudaMemcpy(d_M, input.M.data(), input.M.size() * sizeof(int), cudaMemcpyHostToDevice);
 
@@ -146,6 +149,8 @@ int host(DIMACSInput& input) {
     int shared_mem_size = (THREADS_PER_BLOCK * 2 + 1) * sizeof(int);
     int h_changed = 1, h_contradiction = 0;
 
+    {
+    nvtx3::scoped_range marker("fixpoint");
     while (h_changed == 1 && h_contradiction == 0) {
         cudaMemset(d_changed, 0, sizeof(int));
 
@@ -158,6 +163,7 @@ int host(DIMACSInput& input) {
         cudaMemcpy(&h_changed, d_changed, sizeof(int), cudaMemcpyDeviceToHost);
         cudaMemcpy(&h_contradiction, d_contradiction, sizeof(int), cudaMemcpyDeviceToHost);
     } 
+    }
 
     cudaMemcpy(input.M.data(), d_M, input.M.size() * sizeof(int), cudaMemcpyDeviceToHost);
 

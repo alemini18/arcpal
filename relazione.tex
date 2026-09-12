@@ -436,6 +436,18 @@ allocata dinamicamente all'avvio (\texttt{max\_shared\_mem * sizeof(int)} passat
 \texttt{cudaLaunchCooperativeKernel}), in funzione del numero di atomi e del numero di letterali
 assegnati al blocco.
 
+A differenza delle altre varianti, questa scelta impone due limiti espliciti alla taglia
+dell'istanza. Poiché ogni blocco mantiene in shared memory l'intero vettore \texttt{M} oltre ai
+letterali delle proprie regole, la memoria richiesta cresce con il numero di atomi e non può
+superare quella disponibile per blocco; e poiché ogni blocco possiede un insieme fisso di regole,
+la griglia non può essere ridotta ai soli blocchi co-residenti come nelle altre varianti
+cooperative, quindi il numero di regole è limitato dal numero di blocchi che la GPU riesce a
+mantenere simultaneamente attivi. Entrambi i limiti sono verificati sull'host prima di allocare:
+se l'istanza non vi rientra il programma la rifiuta con un messaggio diagnostico e restituisce
+\texttt{s ERROR}, invece di lanciare un kernel che scriverebbe oltre la shared memory allocata.
+È una rinuncia consapevole alla generalità richiesta dalla traccia in cambio della località: le
+altre otto varianti restano limitate solo dalla memoria globale del dispositivo.
+
 \subsection{Riepilogo}
 
 \begin{table}[h]

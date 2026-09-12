@@ -227,6 +227,8 @@ int host(DIMACSInput& input, ReverseTables& revt) {
     int *d_S_sat, *d_S_undef, *d_updated_rules;
     int *d_queue, *d_q_size, *d_contradiction;
 
+    cudaFree(0); // Crea il contesto CUDA prima della regione misurata
+
     cudaMalloc(&d_M, input.M.size() * sizeof(int));
     cudaMemcpy(d_M, input.M.data(), input.M.size() * sizeof(int), cudaMemcpyHostToDevice);
 
@@ -281,11 +283,26 @@ int host(DIMACSInput& input, ReverseTables& revt) {
     int tiles_per_block = THREADS_PER_BLOCK / TILE_SIZE; 
     int blocks_per_grid = (input.num_rules + tiles_per_block - 1) / tiles_per_block;
 
+    {
+    nvtx3::scoped_range marker("fixpoint");
     init_sums_kernel<TILE_SIZE><<<blocks_per_grid, THREADS_PER_BLOCK>>>(
         d_M, d_rule_offsets, d_flat_lits, d_flat_weights, 
         d_S_sat, d_S_undef, d_updated_rules, input.num_rules
     );
     cudaDeviceSynchronize();    
+
+    int num_blocks_per_sm = 0;
+    cudaOccupancyMaxActiveBlocksPerMultiprocessor(&num_blocks_per_sm, (const void*)kernel<TILE_SIZE>, THREADS_PER_BLOCK, 0);
+    int device_id = 0;
+    cudaGetDevice(&device_id);
+    int num_SMs;
+    cudaDeviceGetAttribute(&num_SMs, cudaDevAttrMultiProcessorCount, device_id);
+
+    int coop_blocks_per_grid = num_SMs * num_blocks_per_sm;
+    if (coop_blocks_per_grid > blocks_per_grid) {
+        coop_blocks_per_grid = blocks_per_grid;
+    }
+    if (coop_blocks_per_grid == 0) coop_blocks_per_grid = 1;
 
     void* kernel_args[] = {
         &d_M,
@@ -311,7 +328,7 @@ int host(DIMACSInput& input, ReverseTables& revt) {
 
     cudaError_t launch_err = cudaLaunchCooperativeKernel(
         (void*)kernel<TILE_SIZE>, 
-        blocks_per_grid, 
+        coop_blocks_per_grid, 
         THREADS_PER_BLOCK,
         kernel_args
     );
@@ -320,6 +337,7 @@ int host(DIMACSInput& input, ReverseTables& revt) {
         cerr<<"Kernel Launch Error: "<<cudaGetErrorString(launch_err)<<endl;
     }
     cudaDeviceSynchronize();
+    }
 
     int h_contradiction = 2;
     cudaMemcpy(&h_contradiction, d_contradiction, sizeof(int), cudaMemcpyDeviceToHost);

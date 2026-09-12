@@ -23,7 +23,7 @@ __global__ void kernel(
     int* M,
     const int* head, const int* bound, const int* rule_offsets,
     const int* flat_lits, const int* flat_weights,
-    int num_rules, int* changed, int* contradiction
+    int num_rules, int* changed, int* contradiction, int* iterations
 ) {
     
     cg::grid_group grid = cg::this_grid();
@@ -35,6 +35,7 @@ __global__ void kernel(
 
     if(blockIdx.x == 0 && threadIdx.x == 0){
         *changed = 0;
+        (*iterations)++;
     }
     grid.sync();
 
@@ -126,9 +127,9 @@ __global__ void kernel(
 }
 }
 
-int host(DIMACSInput& input) {
+int host(DIMACSInput& input, int& iterations) {
     int *d_M, *d_head, *d_bound, *d_rule_offsets, *d_flat_lits, *d_flat_weights;
-    int *d_changed, *d_contradiction;
+    int *d_changed, *d_contradiction, *d_iterations;
 
     cudaFree(0); // Crea il contesto CUDA prima della regione misurata
 
@@ -153,6 +154,9 @@ int host(DIMACSInput& input) {
     cudaMalloc(&d_changed, sizeof(int));
     cudaMalloc(&d_contradiction, sizeof(int));
     cudaMemset(d_contradiction, 0, sizeof(int));
+
+    cudaMalloc(&d_iterations, sizeof(int));
+    cudaMemset(d_iterations, 0, sizeof(int));
 
     const int TILE_SIZE = 16; 
     const int THREADS_PER_BLOCK = 256; 
@@ -181,7 +185,8 @@ int host(DIMACSInput& input) {
     (void*)&d_flat_weights,
     (void*)&input.num_rules,
     (void*)&d_changed,
-    (void*)&d_contradiction
+    (void*)&d_contradiction,
+    (void*)&d_iterations
 };
 
     {
@@ -203,6 +208,7 @@ int host(DIMACSInput& input) {
 
     cudaMemcpy(input.M.data(), d_M, input.M.size() * sizeof(int), cudaMemcpyDeviceToHost);
     cudaMemcpy(&h_contradiction, d_contradiction,sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&iterations, d_iterations, sizeof(int), cudaMemcpyDeviceToHost);
 
     cudaFree(d_M);
     cudaFree(d_head);
@@ -212,13 +218,15 @@ int host(DIMACSInput& input) {
     cudaFree(d_flat_weights); 
     cudaFree(d_changed); 
     cudaFree(d_contradiction);
+    cudaFree(d_iterations);
 
     return h_contradiction;
 }
 
 int main() {
     DIMACSInput input = parse_dimacs_input();
-    int contradiction = host(input);
-    print_structure(input,contradiction);
+    int iterations = 0;
+    int contradiction = host(input, iterations);
+    print_structure(input,contradiction,iterations);
 
 }

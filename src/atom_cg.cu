@@ -197,7 +197,7 @@ __global__ void kernel(
     const int* flat_lits, const int* flat_weights,
     int* S_sat, int* S_undef, int* updated_rules,
     int num_rules, int* contradiction,
-    int* queue, int* q_size
+    int* queue, int* q_size, int* iterations
 ) {
     cg::grid_group grid = cg::this_grid();
     
@@ -205,6 +205,8 @@ __global__ void kernel(
     __shared__ int contradiction_shared;
 
     while (true) {
+
+        if (grid.thread_rank() == 0) (*iterations)++;
 
         for(int rule_id = blockIdx.x; rule_id < num_rules; rule_id += gridDim.x){
             
@@ -234,12 +236,12 @@ __global__ void kernel(
     }
 }
 
-int host(DIMACSInput& input, ReverseTables& revt) {
+int host(DIMACSInput& input, ReverseTables& revt, int& iterations) {
     int *d_M, *d_head, *d_bound, *d_rule_offsets, *d_flat_lits, *d_flat_weights;
     int *d_atom_body_offsets, *d_atom_body_rules, *d_atom_body_lits, *d_atom_body_weights;
     int *d_atom_head_offsets, *d_atom_head_rules;
     int *d_S_sat, *d_S_undef, *d_updated_rules;
-    int *d_queue, *d_q_size, *d_contradiction;
+    int *d_queue, *d_q_size, *d_contradiction, *d_iterations;
 
     cudaFree(0); // Crea il contesto CUDA prima della regione misurata
 
@@ -291,6 +293,9 @@ int host(DIMACSInput& input, ReverseTables& revt) {
     cudaMemset(d_contradiction, 0, sizeof(int));
     cudaMemset(d_q_size, 0, sizeof(int));
 
+    cudaMalloc(&d_iterations, sizeof(int));
+    cudaMemset(d_iterations, 0, sizeof(int));
+
 
     const int THREADS_PER_BLOCK = 256;
     
@@ -335,6 +340,7 @@ int host(DIMACSInput& input, ReverseTables& revt) {
         &d_contradiction,
         &d_queue,
         &d_q_size,
+        &d_iterations,
     };
 
     cudaError_t launch_err = cudaLaunchCooperativeKernel(
@@ -352,6 +358,7 @@ int host(DIMACSInput& input, ReverseTables& revt) {
 
     int h_contradiction = 2;
     cudaMemcpy(&h_contradiction, d_contradiction, sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&iterations, d_iterations, sizeof(int), cudaMemcpyDeviceToHost);
     cudaMemcpy(input.M.data(), d_M, input.M.size() * sizeof(int), cudaMemcpyDeviceToHost);
 
     cudaFree(d_M);
@@ -372,6 +379,7 @@ int host(DIMACSInput& input, ReverseTables& revt) {
     cudaFree(d_queue);
     cudaFree(d_q_size);
     cudaFree(d_contradiction);
+    cudaFree(d_iterations);
 
     return h_contradiction;
 }
@@ -383,6 +391,7 @@ int main() {
     nvtx3::scoped_range marker("build_reverse_tables");
     build_reverse_tables(input, revt);
     }
-    int contradiction = host(input,revt);
-    print_structure(input,contradiction);
+    int iterations = 0;
+    int contradiction = host(input,revt,iterations);
+    print_structure(input,contradiction,iterations);
 }

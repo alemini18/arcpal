@@ -109,7 +109,7 @@ __global__ void kernel(
     }
 }
 
-int host(DIMACSInput& input) {
+int host(DIMACSInput& input, int& iterations) {
     int *d_M, *d_head, *d_bound, *d_rule_offsets, *d_flat_lits, *d_flat_weights;
     int *d_changed, *d_contradiction;
 
@@ -148,6 +148,7 @@ int host(DIMACSInput& input) {
     {
     nvtx3::scoped_range marker("fixpoint");
     while (h_changed == 1 && h_contradiction == 0) {
+        iterations++;
 
         cudaMemset(d_changed, 0, sizeof(int));
 
@@ -179,7 +180,8 @@ int host(DIMACSInput& input) {
 
 int main() {
     DIMACSInput input = parse_dimacs_input();
-    int contradiction = host(input);
-    print_structure(input,contradiction);
+    int iterations = 0;
+    int contradiction = host(input, iterations);
+    print_structure(input,contradiction,iterations);
 
 }

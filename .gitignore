@@ -12,3 +12,4 @@ tests/scaling/input/*
 tests/scaling/output/*
 tests/scaling/results/*
 tests/scaling/stats/*.csv
+scaling_stats/*

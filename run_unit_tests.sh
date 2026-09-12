@@ -31,7 +31,8 @@ for exec in "$BUILD_DIR"/*; do
 
         OUT=$("$exec" < "$test_file")
 
-        if diff -q -w <(echo "$OUT") "$RES_FILE" > /dev/null; then
+        # Dalla prima riga si toglie il numero di iterazioni, che dipende dalla variante
+        if diff -q -w <(echo "$OUT" | sed '1s/ [0-9]*$//') "$RES_FILE" > /dev/null; then
             echo -e "[\033[32mPASS\033[0m] $filename"
             ((PASSED++))
         else

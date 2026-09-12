@@ -88,7 +88,8 @@ for test_file in "$INPUT_DIR"/*.in; do
     if [ ! -f "$RES_FILE" ]; then
         echo -e "[\033[33mSKIP\033[0m] $filename (nessun riferimento, manca 'build/serial_naive')"
         ((SKIPPED++))
-    elif diff -q -w "$TMP_OUT" "$RES_FILE" > /dev/null; then
+    # Dalla prima riga si toglie il numero di iterazioni, che dipende dalla variante
+    elif diff -q -w <(sed '1s/ [0-9]*$//' "$TMP_OUT") <(sed '1s/ [0-9]*$//' "$RES_FILE") > /dev/null; then
         echo -e "[\033[32mPASS\033[0m] $filename ($num_rules regole, $num_lits letterali)"
         ((PASSED++))
     else

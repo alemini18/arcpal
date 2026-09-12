@@ -182,7 +182,7 @@ __global__ void deduce_kernel(
     }
 }
 
-int host(DIMACSInput& input, ReverseTables& revt) {
+int host(DIMACSInput& input, ReverseTables& revt, int& iterations) {
     int *d_M, *d_head, *d_bound, *d_rule_offsets, *d_flat_lits, *d_flat_weights;
     int *d_atom_body_offsets, *d_atom_body_rules, *d_atom_body_lits, *d_atom_body_weights;
     int *d_atom_head_offsets, *d_atom_head_rules;
@@ -268,7 +268,11 @@ int host(DIMACSInput& input, ReverseTables& revt) {
     cudaMemcpy(&h_num_out, d_num_out, sizeof(int), cudaMemcpyDeviceToHost);
     cudaMemcpy(&h_contradiction, d_contradiction, sizeof(int), cudaMemcpyDeviceToHost);
 
+    // Il deduce_kernel del preambolo e' gia' la prima passata di propagazione
+    iterations = 1;
+
     while (h_num_out > 0 && h_contradiction == 0) {
+        iterations++;
         
         int* temp = d_queue_in;
         d_queue_in = d_queue_out;
@@ -329,8 +333,9 @@ int main() {
     nvtx3::scoped_range marker("build_reverse_tables");
     build_reverse_tables(input, revt);
     }
-    int contradiction = host(input, revt);
-    print_structure(input, contradiction);
+    int iterations = 0;
+    int contradiction = host(input, revt, iterations);
+    print_structure(input, contradiction, iterations);
 
     return 0;
 }

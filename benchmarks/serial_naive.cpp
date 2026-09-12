@@ -83,9 +83,11 @@ int main() {
     DIMACSInput data = parse_dimacs_input();
     bool changed = true;
     bool contradiction = false;
+    int iterations = 0;
 
     while (changed && !contradiction) {
         changed = false;
+        iterations++;
 
         for (int i = 0; i < data.num_rules; i++) {
             changed |= propagate_rule(data, i, contradiction);
@@ -95,6 +97,6 @@ int main() {
         }
     }
 
-    print_structure(data, contradiction);
+    print_structure(data, contradiction, iterations);
     return 0;
 }

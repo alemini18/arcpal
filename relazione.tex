@@ -252,17 +252,26 @@ le contraddizioni senza dover ispezionare l'intero stato di \texttt{M} da host.
 L'output (\texttt{src/printer.cpp}) è anch'esso testuale, su quattro righe:
 
 \begin{lstlisting}[language=,basicstyle=\ttfamily\small,frame=single]
-s SUCCESS | CONTRADICTION | ERROR
+s SUCCESS | CONTRADICTION | ERROR <iterazioni>
 v <letterali assegnati> 0
 d <indici regole determinate, con segno> 0
 u <indici regole indeterminate> 0
 \end{lstlisting}
 
+Il numero che chiude la prima riga conta le iterazioni del punto fisso, cioè quante passate di
+propagazione sull'insieme delle regole sono servite per convergere, l'ultima delle quali non
+produce più assegnamenti. Nelle varianti che tengono il ciclo sull'host è un contatore incrementato
+a ogni lancio del kernel; in quelle cooperative è un intero in memoria globale, incrementato da un
+solo thread a ogni giro del ciclo interno al kernel e ricopiato su host alla fine. Per
+\texttt{rule\_partial\_fp\_cg} il valore conta i giri globali e non i punti fissi locali calcolati
+dentro a ciascun blocco. Poiché il conteggio dipende dalla variante e non solo dall'istanza, i
+confronti di correttezza lo escludono dal \emph{diff}.
+
 La riga \texttt{v} elenca i letterali di $\hat M$. La riga \texttt{d} elenca, per ogni regola
 completamente determinata, il suo indice con segno positivo se la regola risulta soddisfatta
 (head e body concordano) o negativo se risulta violata; la riga \texttt{u} elenca le regole per cui
 head o body sono ancora indeterminati in $\hat M$. Ad esempio, per \texttt{test1.in} l'output atteso
-è \texttt{s SUCCESS} / \texttt{v 1 -2 3 -4 0} / \texttt{d 1 2 0} / \texttt{u 0}: entrambe le regole
+è \texttt{s SUCCESS 2} / \texttt{v 1 -2 3 -4 0} / \texttt{d 1 2 0} / \texttt{u 0}: entrambe le regole
 risultano determinate e soddisfatte.
 
 \section{Strategie di soluzione}
@@ -570,7 +579,10 @@ correttezza è verificata confrontando l'output con quello della baseline serial
 istanza, calcolato una volta sola e riusato da tutte le varianti. Le istanze che una variante
 rifiuta per limiti di taglia, cioè quelle su cui \texttt{rule\_partial\_fp\_cg} restituisce
 \texttt{s ERROR}, vengono contate come saltate e non entrano nelle misure. Lo script
-\texttt{analyze\_scaling.py} aggrega i CSV prodotti e disegna la figura.
+\texttt{analyze\_scaling.py} aggrega i CSV prodotti e disegna la figura. Lo script
+\texttt{run\_iterations.sh} raccoglie invece, sulle stesse istanze, il numero di iterazioni di ogni
+variante leggendolo dalla prima riga dell'output, e verifica al tempo stesso che il punto fisso
+raggiunto coincida con quello della baseline seriale.
 
 \section{Risultati delle performance}
 \label{sec:risultati}

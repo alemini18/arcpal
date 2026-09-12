@@ -4,16 +4,17 @@
 
 using namespace std;
 
-void print_structure(DIMACSInput& data, int contradiction) {
+void print_structure(DIMACSInput& data, int contradiction, int iterations) {
 
+    // Sulla prima riga, dopo l'esito, le iterazioni spese per raggiungere il punto fisso
     if(contradiction >= 2){
-        cout << "s ERROR\n";
+        cout << "s ERROR " << iterations << "\n";
         return; 
     }
     if(contradiction == 1){
-        cout << "s CONTRADICTION\n";
+        cout << "s CONTRADICTION " << iterations << "\n";
     }else{
-        cout << "s SUCCESS\n";
+        cout << "s SUCCESS " << iterations << "\n";
     }
     cout << "v ";
         

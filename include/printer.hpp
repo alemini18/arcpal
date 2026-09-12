@@ -3,6 +3,6 @@
 #include "parser.hpp"
 
 
-void print_structure(DIMACSInput& data, int is_contradiction = 0);
+void print_structure(DIMACSInput& data, int is_contradiction = 0, int iterations = 0);
 
 #endif // PRINTER_HPP

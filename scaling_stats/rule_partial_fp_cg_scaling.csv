@@ -1,0 +1,85 @@
+Test File,Rules,Lits,Run,Report,Time (%),Total Time (ns),Instances,Avg (ns),Med (ns),Min (ns),Max (ns),StdDev (ns),Name
+sudoku_16x16.in,2048,32768,1,wall,100.0,438519313,1,,,,,,total
+sudoku_16x16.in,2048,32768,1,nvtx_pushpop_sum,100.0,282796,1,282796.0,282796.0,282796,282796,0.0,:fixpoint
+sudoku_16x16.in,2048,32768,1,nvtx_sum,100.0,282796,1,282796.0,282796.0,282796,282796,0.0,PushPop,:fixpoint
+sudoku_16x16.in,2048,32768,1,cuda_gpu_kern_sum,100.0,122559,1,122559.0,122559.0,122559,122559,0.0,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int, int *, int *)"
+sudoku_16x16.in,2048,32768,2,wall,100.0,510737051,1,,,,,,total
+sudoku_16x16.in,2048,32768,2,nvtx_pushpop_sum,100.0,355670,1,355670.0,355670.0,355670,355670,0.0,:fixpoint
+sudoku_16x16.in,2048,32768,2,nvtx_sum,100.0,355670,1,355670.0,355670.0,355670,355670,0.0,PushPop,:fixpoint
+sudoku_16x16.in,2048,32768,2,cuda_gpu_kern_sum,100.0,123999,1,123999.0,123999.0,123999,123999,0.0,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int, int *, int *)"
+sudoku_16x16.in,2048,32768,3,wall,100.0,459411096,1,,,,,,total
+sudoku_16x16.in,2048,32768,3,nvtx_pushpop_sum,100.0,282579,1,282579.0,282579.0,282579,282579,0.0,:fixpoint
+sudoku_16x16.in,2048,32768,3,nvtx_sum,100.0,282579,1,282579.0,282579.0,282579,282579,0.0,PushPop,:fixpoint
+sudoku_16x16.in,2048,32768,3,cuda_gpu_kern_sum,100.0,122687,1,122687.0,122687.0,122687,122687,0.0,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int, int *, int *)"
+sudoku_9x9.in,648,5832,1,wall,100.0,422909775,1,,,,,,total
+sudoku_9x9.in,648,5832,1,nvtx_pushpop_sum,100.0,218601,1,218601.0,218601.0,218601,218601,0.0,:fixpoint
+sudoku_9x9.in,648,5832,1,nvtx_sum,100.0,218601,1,218601.0,218601.0,218601,218601,0.0,PushPop,:fixpoint
+sudoku_9x9.in,648,5832,1,cuda_gpu_kern_sum,100.0,65600,1,65600.0,65600.0,65600,65600,0.0,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int, int *, int *)"
+sudoku_9x9.in,648,5832,2,wall,100.0,435611351,1,,,,,,total
+sudoku_9x9.in,648,5832,2,nvtx_pushpop_sum,100.0,293944,1,293944.0,293944.0,293944,293944,0.0,:fixpoint
+sudoku_9x9.in,648,5832,2,nvtx_sum,100.0,293944,1,293944.0,293944.0,293944,293944,0.0,PushPop,:fixpoint
+sudoku_9x9.in,648,5832,2,cuda_gpu_kern_sum,100.0,65760,1,65760.0,65760.0,65760,65760,0.0,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int, int *, int *)"
+sudoku_9x9.in,648,5832,3,wall,100.0,496108423,1,,,,,,total
+sudoku_9x9.in,648,5832,3,nvtx_pushpop_sum,100.0,223800,1,223800.0,223800.0,223800,223800,0.0,:fixpoint
+sudoku_9x9.in,648,5832,3,nvtx_sum,100.0,223800,1,223800.0,223800.0,223800,223800,0.0,PushPop,:fixpoint
+sudoku_9x9.in,648,5832,3,cuda_gpu_kern_sum,100.0,65664,1,65664.0,65664.0,65664,65664,0.0,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int, int *, int *)"
+synth_L008_r000500.in,500,4000,1,wall,100.0,424223361,1,,,,,,total
+synth_L008_r000500.in,500,4000,1,nvtx_pushpop_sum,100.0,186433,1,186433.0,186433.0,186433,186433,0.0,:fixpoint
+synth_L008_r000500.in,500,4000,1,nvtx_sum,100.0,186433,1,186433.0,186433.0,186433,186433,0.0,PushPop,:fixpoint
+synth_L008_r000500.in,500,4000,1,cuda_gpu_kern_sum,100.0,30272,1,30272.0,30272.0,30272,30272,0.0,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int, int *, int *)"
+synth_L008_r000500.in,500,4000,2,wall,100.0,497234489,1,,,,,,total
+synth_L008_r000500.in,500,4000,2,nvtx_pushpop_sum,100.0,184875,1,184875.0,184875.0,184875,184875,0.0,:fixpoint
+synth_L008_r000500.in,500,4000,2,nvtx_sum,100.0,184875,1,184875.0,184875.0,184875,184875,0.0,PushPop,:fixpoint
+synth_L008_r000500.in,500,4000,2,cuda_gpu_kern_sum,100.0,30816,1,30816.0,30816.0,30816,30816,0.0,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int, int *, int *)"
+synth_L008_r000500.in,500,4000,3,wall,100.0,500266884,1,,,,,,total
+synth_L008_r000500.in,500,4000,3,nvtx_pushpop_sum,100.0,188154,1,188154.0,188154.0,188154,188154,0.0,:fixpoint
+synth_L008_r000500.in,500,4000,3,nvtx_sum,100.0,188154,1,188154.0,188154.0,188154,188154,0.0,PushPop,:fixpoint
+synth_L008_r000500.in,500,4000,3,cuda_gpu_kern_sum,100.0,30847,1,30847.0,30847.0,30847,30847,0.0,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int, int *, int *)"
+synth_L008_r001000.in,1000,8000,1,wall,100.0,418788356,1,,,,,,total
+synth_L008_r001000.in,1000,8000,1,nvtx_pushpop_sum,100.0,193110,1,193110.0,193110.0,193110,193110,0.0,:fixpoint
+synth_L008_r001000.in,1000,8000,1,nvtx_sum,100.0,193110,1,193110.0,193110.0,193110,193110,0.0,PushPop,:fixpoint
+synth_L008_r001000.in,1000,8000,1,cuda_gpu_kern_sum,100.0,37344,1,37344.0,37344.0,37344,37344,0.0,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int, int *, int *)"
+synth_L008_r001000.in,1000,8000,2,wall,100.0,503647599,1,,,,,,total
+synth_L008_r001000.in,1000,8000,2,nvtx_pushpop_sum,100.0,199686,1,199686.0,199686.0,199686,199686,0.0,:fixpoint
+synth_L008_r001000.in,1000,8000,2,nvtx_sum,100.0,199686,1,199686.0,199686.0,199686,199686,0.0,PushPop,:fixpoint
+synth_L008_r001000.in,1000,8000,2,cuda_gpu_kern_sum,100.0,39040,1,39040.0,39040.0,39040,39040,0.0,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int, int *, int *)"
+synth_L008_r001000.in,1000,8000,3,wall,100.0,497201111,1,,,,,,total
+synth_L008_r001000.in,1000,8000,3,nvtx_pushpop_sum,100.0,200031,1,200031.0,200031.0,200031,200031,0.0,:fixpoint
+synth_L008_r001000.in,1000,8000,3,nvtx_sum,100.0,200031,1,200031.0,200031.0,200031,200031,0.0,PushPop,:fixpoint
+synth_L008_r001000.in,1000,8000,3,cuda_gpu_kern_sum,100.0,39680,1,39680.0,39680.0,39680,39680,0.0,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int, int *, int *)"
+synth_L008_r002000.in,2000,16000,1,wall,100.0,432177595,1,,,,,,total
+synth_L008_r002000.in,2000,16000,1,nvtx_pushpop_sum,100.0,235073,1,235073.0,235073.0,235073,235073,0.0,:fixpoint
+synth_L008_r002000.in,2000,16000,1,nvtx_sum,100.0,235073,1,235073.0,235073.0,235073,235073,0.0,PushPop,:fixpoint
+synth_L008_r002000.in,2000,16000,1,cuda_gpu_kern_sum,100.0,71679,1,71679.0,71679.0,71679,71679,0.0,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int, int *, int *)"
+synth_L008_r002000.in,2000,16000,2,wall,100.0,503592931,1,,,,,,total
+synth_L008_r002000.in,2000,16000,2,nvtx_pushpop_sum,100.0,234264,1,234264.0,234264.0,234264,234264,0.0,:fixpoint
+synth_L008_r002000.in,2000,16000,2,nvtx_sum,100.0,234264,1,234264.0,234264.0,234264,234264,0.0,PushPop,:fixpoint
+synth_L008_r002000.in,2000,16000,2,cuda_gpu_kern_sum,100.0,73536,1,73536.0,73536.0,73536,73536,0.0,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int, int *, int *)"
+synth_L008_r002000.in,2000,16000,3,wall,100.0,506617435,1,,,,,,total
+synth_L008_r002000.in,2000,16000,3,nvtx_pushpop_sum,100.0,229847,1,229847.0,229847.0,229847,229847,0.0,:fixpoint
+synth_L008_r002000.in,2000,16000,3,nvtx_sum,100.0,229847,1,229847.0,229847.0,229847,229847,0.0,PushPop,:fixpoint
+synth_L008_r002000.in,2000,16000,3,cuda_gpu_kern_sum,100.0,72128,1,72128.0,72128.0,72128,72128,0.0,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int, int *, int *)"
+synth_L200_r000500.in,500,100000,1,wall,100.0,455049469,1,,,,,,total
+synth_L200_r000500.in,500,100000,1,nvtx_pushpop_sum,100.0,236025,1,236025.0,236025.0,236025,236025,0.0,:fixpoint
+synth_L200_r000500.in,500,100000,1,nvtx_sum,100.0,236025,1,236025.0,236025.0,236025,236025,0.0,PushPop,:fixpoint
+synth_L200_r000500.in,500,100000,1,cuda_gpu_kern_sum,100.0,57535,1,57535.0,57535.0,57535,57535,0.0,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int, int *, int *)"
+synth_L200_r000500.in,500,100000,2,wall,100.0,522555780,1,,,,,,total
+synth_L200_r000500.in,500,100000,2,nvtx_pushpop_sum,100.0,228026,1,228026.0,228026.0,228026,228026,0.0,:fixpoint
+synth_L200_r000500.in,500,100000,2,nvtx_sum,100.0,228026,1,228026.0,228026.0,228026,228026,0.0,PushPop,:fixpoint
+synth_L200_r000500.in,500,100000,2,cuda_gpu_kern_sum,100.0,60608,1,60608.0,60608.0,60608,60608,0.0,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int, int *, int *)"
+synth_L200_r000500.in,500,100000,3,wall,100.0,529086396,1,,,,,,total
+synth_L200_r000500.in,500,100000,3,nvtx_pushpop_sum,100.0,295180,1,295180.0,295180.0,295180,295180,0.0,:fixpoint
+synth_L200_r000500.in,500,100000,3,nvtx_sum,100.0,295180,1,295180.0,295180.0,295180,295180,0.0,PushPop,:fixpoint
+synth_L200_r000500.in,500,100000,3,cuda_gpu_kern_sum,100.0,55328,1,55328.0,55328.0,55328,55328,0.0,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int, int *, int *)"
+synth_L200_r001000.in,1000,200000,1,wall,100.0,478777419,1,,,,,,total
+synth_L200_r001000.in,1000,200000,1,nvtx_pushpop_sum,100.0,234604,1,234604.0,234604.0,234604,234604,0.0,:fixpoint
+synth_L200_r001000.in,1000,200000,1,nvtx_sum,100.0,234604,1,234604.0,234604.0,234604,234604,0.0,PushPop,:fixpoint
+synth_L200_r001000.in,1000,200000,1,cuda_gpu_kern_sum,100.0,67968,1,67968.0,67968.0,67968,67968,0.0,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int, int *, int *)"
+synth_L200_r001000.in,1000,200000,2,wall,100.0,483475883,1,,,,,,total
+synth_L200_r001000.in,1000,200000,2,nvtx_pushpop_sum,100.0,235243,1,235243.0,235243.0,235243,235243,0.0,:fixpoint
+synth_L200_r001000.in,1000,200000,2,nvtx_sum,100.0,235243,1,235243.0,235243.0,235243,235243,0.0,PushPop,:fixpoint
+synth_L200_r001000.in,1000,200000,2,cuda_gpu_kern_sum,100.0,68191,1,68191.0,68191.0,68191,68191,0.0,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int, int *, int *)"
+synth_L200_r001000.in,1000,200000,3,wall,100.0,559753412,1,,,,,,total
+synth_L200_r001000.in,1000,200000,3,nvtx_pushpop_sum,100.0,300465,1,300465.0,300465.0,300465,300465,0.0,:fixpoint
+synth_L200_r001000.in,1000,200000,3,nvtx_sum,100.0,300465,1,300465.0,300465.0,300465,300465,0.0,PushPop,:fixpoint
+synth_L200_r001000.in,1000,200000,3,cuda_gpu_kern_sum,100.0,68799,1,68799.0,68799.0,68799,68799,0.0,"void kernel<(int)16>(int *, const int *, const int *, const int *, const int *, const int *, int, int, int *, int *)"
